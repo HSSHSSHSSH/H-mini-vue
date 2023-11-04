@@ -1,3 +1,6 @@
+let activeEffect
+
+let effectStack = []
 
 class ReactiveEffect {
   constructor(fn) {
@@ -6,7 +9,10 @@ class ReactiveEffect {
 
   run() {
     activeEffect = this;
+    effectStack.push(this);
     this._fn()
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length - 1]
   }
 }
 
@@ -16,6 +22,7 @@ class ReactiveEffect {
 // a: 因为WeakMap的key是弱引用，当key被回收时，value也会被回收, 这样就不会造成内存泄漏.
 let targetMap = new WeakMap()
 function track (target, key) {
+  if (!activeEffect) return
   let depsMap = targetMap.get(target)
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()))
@@ -38,7 +45,6 @@ function trigger (target, key) {
   })
 }
 
-let activeEffect
 function effect (fn) { // 注册副作用函数
   const _effect = new ReactiveEffect(fn)
   _effect.run()

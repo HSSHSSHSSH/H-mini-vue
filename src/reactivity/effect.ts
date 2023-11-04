@@ -1,3 +1,6 @@
+let activeEffect : ReactiveEffect | null // 当前活跃的 ReactiveEffect 实例
+let effectStack: ReactiveEffect[] = [] // 用于存储副作用函数的栈
+let targetMap = new WeakMap() // 用于存储依赖项的 Map 
 
 class ReactiveEffect {
   private _fn: Function;
@@ -9,9 +12,15 @@ class ReactiveEffect {
 
   run() {
     activeEffect = this;
+    // 将 activeEffect 放入 effectStack 的首位
+    // effectStack.unshift(this)
+    effectStack.push(this)
     cleanup(this);
-    
     this._fn()
+    // 将 activeEffect 从 effectStack 中移除
+    // effectStack.shift()
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length - 1]
   }
 }
 
@@ -19,7 +28,6 @@ class ReactiveEffect {
 // 收集依赖
 // q: 为什么targetMap要用WeakMap
 // a: 因为WeakMap的key是弱引用，当key被回收时，value也会被回收, 这样就不会造成内存泄漏.
-let targetMap = new WeakMap()
 export function track (target, key) {
   if(!activeEffect) return
   let depsMap = targetMap.get(target)
@@ -52,7 +60,8 @@ export function trigger (target, key) {
   })
 }
 
-let activeEffect : ReactiveEffect | null
+// activeEffect 始终指向effectStack的第一个元素
+activeEffect = effectStack[0]
 export function effect (fn) { // 注册副作用函数
   const _effect = new ReactiveEffect(fn)
   _effect.run()
