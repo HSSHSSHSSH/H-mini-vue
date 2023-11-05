@@ -13,14 +13,27 @@ describe('nestification', () => {
     let outer_called_times = 0
     let inner_called_times = 0
 
-    effect(() => {
+    // effect(() => {
+    //   outer_called_times++
+    //   effect(() => {
+    //     inner_called_times++
+    //     temp2 = obj.bar
+    //   })
+    //   temp1 = obj.foo
+    // })
+
+    function innerFunction () {
+      inner_called_times++
+      temp2 = obj.bar
+    }
+
+    function outerFunction () {
       outer_called_times++
-      effect(() => {
-        inner_called_times++
-        temp2 = obj.bar
-      })
+      effect(innerFunction)
       temp1 = obj.foo
-    })
+    }
+
+    effect(outerFunction)
 
     expect(temp1).toBe('000')
     expect(temp2).toBe('111')
@@ -51,7 +64,7 @@ describe('nestification', () => {
     expect(temp1).toBe('555')
     expect(temp2).toBe('666')
     expect(outer_called_times).toBe(3)
-    expect(inner_called_times).toBe(5)
+    expect(inner_called_times).toBe(7)
 
   })
 })

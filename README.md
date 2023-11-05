@@ -268,7 +268,9 @@ function effect (fn) {
 
 以上即为 reactive 与 effect 的简单实现，在 reactive 中使用 Proxy 结构，拦截 get 执行依赖的收集，拦截 set 进行依赖触发，通过 effect 函数进行副作用函数的注册。引入变量 activeEffect 与 targetMap 用于储存当前活跃的副作用函数与当前活跃的 target 所收集到的所有依赖。
 
-## effect 返回 runner
+### Effect
+
+#### effect 返回 runner
 
 (存在疑问，为何要返回 runner)
 
@@ -301,9 +303,7 @@ function effect (fn) {
 }
 ```
 
-
-
-##  分支切换与 cleanup (清除遗留的副作用函数)
+#### 分支切换与 cleanup (清除遗留的副作用函数)
 
 观察以下示例：
 
@@ -505,9 +505,7 @@ function cleanup(reactiveEffect) {
 }
 ```
 
-
-
-## 嵌套 effect 与 effect 栈
+#### 嵌套 effect 与 effect 栈，正确收集依赖
 
 effect 满足嵌套是必要的，比如父子组件的嵌套渲染。
 
@@ -537,11 +535,280 @@ effect(() => {
 
 当 effect 中的 fn1 执行时，此时的 activeEffect 为 ReactiveEffect1，在未对 obj.foo 进行 get 操作时，进入了 fn2 的执行，此时的 activeEffect 为 ReactiveEffect2，对 obj.bar 正常进行 get 与 track 操作，在对 obj.foo 进行 track 操作时的 activeEffect 仍为 ReactiveEffect2，故 obj.foo 的依赖副作用函数亦为 fn2，此时无论更改 obj.foo 或 obj.bar，触发的都是 fn2，fn1 未被当作副作用函数。
 
-为解决此问题，<strong>引入一调用栈，其元素为 ReactiveEffect 实例，且 activeEffect 始终指向位于栈顶的元素</strong>， 
+为解决依赖收集混乱的问题，<strong>引入一调用栈，其元素为 ReactiveEffect 实例，且 activeEffect 始终指向位于栈顶的元素</strong>。
 
-## effect 的可调度行 scheduler
+```ts
+let effectStack : ReactiveEffect[] = [] // 用于存储副作用函数的栈
+class Reactive {
+    // .... 其余代码.... //
+    run() {
+    activeEffect = this;
+    // 将 activeEffect 放入 effectStack 的首位
+    effectStack.push(this)
+    cleanup(this);
+    this._fn()
+    // 将 activeEffect 从 effectStack 中移除
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length - 1]
+  }
+}
+```
+
+这样即可避免依赖收集混乱的问题，以下还需注意：当外层副作用函数执行后，会再次执行内层的 effect 函数用于再次注册内层副作用函数，在依赖 Set 中无法区别相同 fn 的 ReactiveEffect，会在依赖集合中有多个相同 fn 的 ReactiveEffect，此时再次修改内层副作用函数的响应式数据会导致多次执行内层副作用函数（并非相同的 Reactiveffect，而是多个不同的 ReactiveEffect 的 fn 相同）；例如：
+
+```js
+import { reactive } from '../reactive'
+import { effect } from '../effect'
+
+
+describe('nestification', () => {
+  it('happy path', () => {
+    const obj = reactive({
+      foo: '000',
+      bar: '111'
+    })
+
+    let temp1, temp2
+    let outer_called_times = 0
+    let inner_called_times = 0
+
+    function innerFunction () {
+      inner_called_times++
+      temp2 = obj.bar
+    }
+
+    function outerFunction () {
+      outer_called_times++
+      effect(innerFunction)
+      temp1 = obj.foo
+    }
+
+    effect(outerFunction)
+
+    expect(temp1).toBe('000')
+    expect(temp2).toBe('111')
+    expect(outer_called_times).toBe(1)
+    expect(inner_called_times).toBe(1)
+
+    obj.bar = '333'
+
+    expect(temp1).toBe('000')
+    expect(temp2).toBe('333')
+    expect(outer_called_times).toBe(1)
+    expect(inner_called_times).toBe(2)
+
+    obj.foo = '444'
+
+    expect(temp1).toBe('444')
+    expect(temp2).toBe('333')
+    expect(outer_called_times).toBe(2)
+    expect(inner_called_times).toBe(3)
+
+    obj.foo = '555'
+    expect(temp1).toBe('555')
+    expect(temp2).toBe('333')
+    expect(outer_called_times).toBe(3)
+    expect(inner_called_times).toBe(4)
+    
+    obj.bar = '666'
+    expect(temp1).toBe('555')
+    expect(temp2).toBe('666')
+    expect(outer_called_times).toBe(3)
+    expect(inner_called_times).toBe(7)
+
+  })
+})
+```
+
+#### effect 的可调度行 scheduler
 
 可调度性是响应式系统重要的组成部分，所谓可调度性即为当trigger触发副作用函数时，有能力决定副作用函数的执行时机、次数、方式。
+
+由上述描述可知，scheduler 满足：
+
+- 仅在 trigger 中执行，在首次注册副作用函数时不执行
+- 可对副作用函数 fn 进行操作，故必有 fn 作为其参数
+
+例如每次在 trigger 中触发副作用函数时，将其延迟 1 秒：
+
+```ts
+effect(fn, {
+    scheduler: (fn) => {
+        setTimeout(fn, 0)
+    }
+})
+```
+
+需要在注册函数 effect 与 ReactiveEffect 中添加新的参数，即：
+
+```effect.ts
+class ReactiveEffect {
+  private _fn: Function
+  public deps: Set<any> | null // 与该副作用函数相关的依赖项
+  public options: {
+    scheduler?: Function
+  } | null // 新增 副作用函数的配置项
+  constructor(fn, options) {
+    this._fn = fn
+    this.deps = new Set() // 所有与该副作用函数相关的依赖项
+    this.options = options // 新增
+  }
+
+  run() {
+    activeEffect = this
+    // 将 activeEffect 放入 effectStack 的首位
+    effectStack.push(this)
+    cleanup(this)
+    this._fn()
+    // 将 activeEffect 从 effectStack 中移除
+    effectStack.pop()
+    activeEffect = effectStack[effectStack.length - 1]
+  }
+}
+//....其余代码...//
+export function effect(fn, options = {}) {
+  // 注册副作用函数
+  const _effect = new ReactiveEffect(fn, options)
+  _effect.run()
+
+  return _effect.run.bind(_effect)
+}
+```
+
+在 trigger 调用时，判断当前 ReactiveEffect 的配置项是否包含 scheduler，若有则执行 scheduler 并将 run 函数作为参数传入，注意 this 指向：
+
+```effect.ts
+//...其余代码....//
+export function trigger(target, key) {
+  let depsMap = targetMap.get(target)
+  if (!depsMap) return
+  let deps: Set<ReactiveEffect> = depsMap.get(key)
+  if (!deps) return
+  // deps.forEach(effect => {
+  //   effect.run()
+  // })
+  let depsEffects = new Set(deps)
+  depsEffects.forEach((effect) => {
+    if (effect.options && effect.options.scheduler) { // 新增 如果有配置scheduler，则执行scheduler
+      effect.options.scheduler(effect.run.bind(effect)) // 注意 this 指向
+    } else {
+      effect.run()
+    }
+  })
+}
+//...其余代码....//
+```
+
+#### effect 的 stop 功能
+
+我们希望一些副作用函数可以在某个时刻之后不再触发，且在此时刻做一些额外的事情，即
+
+```effect.spec.ts
+it('stop', () => {
+    let dummy
+    const obj = reactive({ prop: 1 })
+    const runner = effect(() => {
+      dummy = obj.prop
+    })
+    obj.prop = 2
+    expect(dummy).toBe(2)
+    runner.stop()
+    obj.prop = 3
+    expect(dummy).toBe(2)
+    // stopped effect should still be manually callable
+    runner()
+    expect(dummy).toBe(3)
+  })
+
+  it('onStop', () => {
+    const obj = reactive({ foo: 1 })
+    const onStop = jest.fn()
+    let dummy
+    const runner = effect(
+      () => {
+        dummy = obj.foo
+      },
+      {
+        onStop
+      }
+    )
+    runner.stop()
+    expect(onStop).toHaveBeenCalledTimes(1)
+  })
+```
+
+在 effect 函数返回的 runner 中添加 stop 函数属性，stop 即为 cleanup，为保证不重复操作 stop，可引入一变量表示是否调用过 stop，在 options 中添加 onStop 属性，并在 stop 中 cleanup 之前调用：
+
+```effect.ts
+class ReactiveEffect {
+    private _isStop: boolean = false // 新增 是否停止
+    public options: {
+    scheduler?: Function,
+    onStop?: Function // 新增
+  } | null // 副作用函数的配置项
+	//....其余代码....//
+	stop() { // 新增
+    if (this._isStop) return
+    if(this.options && this.options.onStop) {
+      this.options.onStop()
+    }
+    cleanup(this)
+  }
+}
+
+//...其余代码....//
+export function effect(fn, options = {}) {
+  // 注册副作用函数
+  const _effect = new ReactiveEffect(fn, options)
+  _effect.run()
+  const runner: any = _effect.run.bind(_effect)
+  runner.stop = _effect.stop.bind(_effect) // 新增
+  return runner
+}
+```
+
+
+
+### Reactive
+
+有时我们希望对一些数据进行保护，当用户尝试修改数据时，会得到一条警告，即只读属性 readonly；
+
+只需修改 reactive 函数，去掉 set 操作与 get 中的 track 操作：
+
+```reactive.ts
+import { track, trigger } from './effect'
+
+export function reactive(raw) {
+  return new Proxy(raw, {
+    get(target, key) {
+      // 依赖收集
+      track(target, key)
+      return Reflect.get(target, key)
+    },
+    set(target, key, value) {
+      // 触发依赖
+      let res = Reflect.set(target, key, value)
+      trigger(target, key)
+      return res
+    },
+  })
+}
+
+
+export function readonly(raw) {
+  return new Proxy(raw, {
+    get(target, key) {
+      return Reflect.get(target, key)
+    },
+    set() {
+      // todo 抛出异常或警告
+      return true
+    },
+  })
+}
+```
+
+
 
 
 
