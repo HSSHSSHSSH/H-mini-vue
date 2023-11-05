@@ -808,9 +808,77 @@ export function readonly(raw) {
 }
 ```
 
+将上述代码中的重复部分提取，整理以上代码：
+
+```reactive.ts
+import { mutableHandlers, readonlyHandlers } from './baseHandles'
 
 
 
+function  createActiveObject(raw, baseHandlers) {
+  return new Proxy(raw, baseHandlers)
+}
+
+export function reactive(raw) {
+  return createActiveObject(raw, mutableHandlers)
+}
+
+
+export function readonly(raw) {
+  return createActiveObject(raw, readonlyHandlers)
+}
+
+
+```
+
+
+
+
+
+```baseHandlers.ts
+import { track, trigger } from "./effect"
+
+
+const get = createGetter()
+const set = createSetter()
+const readonlyGet = createGetter(true)
+
+
+
+function createGetter(isReadonly: boolean = false) {
+  return function get(target, key) {
+   if (!isReadonly) {
+     // 依赖收集
+     track(target, key)
+   }
+    return Reflect.get(target, key)
+  }
+}
+
+function createSetter() {
+  return function set(target, key, value) {
+    let res = Reflect.set(target, key, value)
+    // 触发依赖
+    trigger(target, key)
+    return res
+  }
+}
+
+
+export const mutableHandlers = {
+  get,
+  set
+}
+
+
+export const readonlyHandlers = {
+  get: readonlyGet,
+  set(target, key, value) {
+    console.warn('只读属性，虾吗？')
+    return true
+  }
+}
+```
 
 
 

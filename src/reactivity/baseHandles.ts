@@ -38,5 +38,5 @@ export const readonlyHandlers = {
   set(target, key, value) {
     console.warn('只读属性，虾吗？')
     return true
-  },
+  }
 }
