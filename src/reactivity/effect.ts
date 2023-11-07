@@ -1,17 +1,16 @@
 let activeEffect: ReactiveEffect | null // 当前活跃的 ReactiveEffect 实例
 let effectStack: ReactiveEffect[] = [] // 用于存储副作用函数的栈
 let targetMap = new WeakMap() // 用于存储依赖项的 Map
-
-
+let shouldTrack = false // 是否需要收集依赖
 
 class ReactiveEffect {
   private _fn: Function
   public deps: Set<any> | null // 与该副作用函数相关的依赖项
   public options: {
-    scheduler?: Function,
+    scheduler?: Function
     onStop?: Function
   } | null // 副作用函数的配置项
-  private _isStop: boolean = false // 是否停止
+  public active: boolean = true
   constructor(fn, options) {
     this._fn = fn
     this.deps = new Set() // 所有与该副作用函数相关的依赖项
@@ -22,19 +21,21 @@ class ReactiveEffect {
     activeEffect = this
     // 将 activeEffect 放入 effectStack 的首位
     effectStack.push(this)
-    cleanup(this)
-    this._fn()
+      cleanup(this) // 清除与该副作用函数相关的依赖项
+    this._fn() // 有收集依赖的操作
     // 将 activeEffect 从 effectStack 中移除
     effectStack.pop()
-    activeEffect = effectStack[effectStack.length - 1]
+    activeEffect = effectStack[effectStack.length - 1] // 维护此变量用于仅在注册副作用函数阶段进行 track 操作
   }
 
   stop() {
-    if (this._isStop) return
-    if(this.options && this.options.onStop) {
-      this.options.onStop()
+    if (this.active) {
+      if (this.options && this.options.onStop) {
+        this.options.onStop()
+      }
+      cleanup(this)
+      this.active = false
     }
-    cleanup(this)
   }
 }
 
@@ -51,6 +52,16 @@ export function track(target, key) {
   if (!deps) {
     depsMap.set(key, (deps = new Set()))
   }
+  if (!activeEffect) return
+  deps.add(activeEffect)
+  if (!activeEffect.deps) {
+    activeEffect.deps = new Set()
+  }
+  activeEffect.deps.add(deps)
+}
+
+export function trackEffect(deps: Set<any>) {
+  if (!activeEffect) return
   deps.add(activeEffect)
   if (!activeEffect.deps) {
     activeEffect.deps = new Set()
@@ -64,9 +75,10 @@ export function trigger(target, key) {
   if (!depsMap) return
   let deps: Set<ReactiveEffect> = depsMap.get(key)
   if (!deps) return
-  // deps.forEach(effect => {
-  //   effect.run()
-  // })
+  triggerEffect(deps)
+}
+
+export function triggerEffect(deps: Set<any>) {  
   let depsEffects = new Set(deps)
   depsEffects.forEach((effect) => {
     if (effect.options && effect.options.scheduler) { // 如果有配置scheduler，则执行scheduler
@@ -76,7 +88,6 @@ export function trigger(target, key) {
     }
   })
 }
-
 
 export function effect(fn, options = {}) {
   // 注册副作用函数

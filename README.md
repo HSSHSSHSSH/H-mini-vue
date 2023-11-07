@@ -771,6 +771,8 @@ export function effect(fn, options = {}) {
 
 ### Reactive
 
+#### readonly 功能
+
 有时我们希望对一些数据进行保护，当用户尝试修改数据时，会得到一条警告，即只读属性 readonly；
 
 只需修改 reactive 函数，去掉 set 操作与 get 中的 track 操作：
@@ -833,8 +835,6 @@ export function readonly(raw) {
 
 
 
-
-
 ```baseHandlers.ts
 import { track, trigger } from "./effect"
 
@@ -881,4 +881,243 @@ export const readonlyHandlers = {
 ```
 
 
+
+#### isReadonly 、 isReactive、shallowReadonly、shallowReactive、isProxy
+
+用来判断一个数据是否为响应式数据与只读数据。
+
+只需在 proxy 中的 get 操作拦截处做判断返回即可。
+
+```reactive.ts
+//...其余代码...//
+export const enum ReactiveFlags {
+  IS_REACTIVE = '__v_isReactive',
+  IS_READONLY = '__v_isReadonly'
+}
+
+export function isReactive(value) {
+  return !!value[ReactiveFlags.IS_REACTIVE]
+}
+
+export function isReadonly(value) {
+  return !!value[ReactiveFlags.IS_READONLY]
+}
+```
+
+
+
+```baseHandlers
+//..其余代码...//
+function createGetter(isReadonly: boolean = false) {
+  return function get(target, key) {
+    if(key === ReactiveFlags.IS_REACTIVE) { // 新增
+      return !isReadonly
+    } else if (key === ReactiveFlags.IS_READONLY) {
+      return isReadonly
+    }
+    if (!isReadonly) {
+     // 依赖收集
+     track(target, key)
+   }
+    return Reflect.get(target, key)
+  }
+}
+```
+
+
+
+reactive 与 readonly 应支持嵌套功能，即：
+
+```reactive.spec.ts
+//...其余代码...//
+it("nested reactive", () => {
+    const original = {
+      nested: {
+        foo: 1
+      },
+      array: [{ bar: 2 }]
+    }
+    const observed = reactive(original)
+    expect(isReactive(observed.nested)).toBe(true)
+    expect(isReactive(observed.array)).toBe(true)
+    expect(isReactive(observed.array[0])).toBe(true)
+  })
+```
+
+
+
+```readonly.spec.ts
+//...其余代码...//
+it('nested readonly', () => {
+    const original = {
+      nested: {
+        foo: 1
+      },
+      array: [{ bar: 2 }]
+    }
+    const wrapped = readonly(original)
+    expect(isReadonly(wrapped.nested)).toBe(true)
+    expect(isReadonly(wrapped.array)).toBe(true)
+    expect(isReadonly(wrapped.array[0])).toBe(true)
+  })
+```
+
+
+
+同样在 proxy 的 get 拦截处进行判断操作：
+
+```baseHandlers.ts
+function createGetter(isReadonly: boolean = false) {
+  return function get(target, key) {
+    if(key === ReactiveFlags.IS_REACTIVE) {
+      return !isReadonly
+    } else if (key === ReactiveFlags.IS_READONLY) {
+      return isReadonly
+    }
+
+    const res = Reflect.get(target, key)
+
+    if(isObject(res)) {  // 新增
+      return isReadonly ? readonly(res) : reactive(res)
+    }
+
+    if (!isReadonly) {
+     // 依赖收集
+     track(target, key)
+   }
+    return res
+  }
+}
+```
+
+
+
+
+
+```shared/index.ts
+export function isObject(value) {
+  return typeof value === 'object' && value !== null
+}
+```
+
+有时我们希望 readonly 数据中的非嵌套数据为 readonly，嵌套数据无需，reactive 同理，可使用 shallowReadonly，shallowReactive即：
+
+```readonly.spec.ts
+it('shallow readonly', () => {
+    const original = {
+      nested: {
+        foo: 1
+      },
+      array: [{ bar: 2 }]
+    }
+    const wrapped = shallowReadonly(original)
+    expect(isReadonly(wrapped)).toBe(true)
+    expect(isReadonly(wrapped.nested)).toBe(false)
+    expect(isReadonly(wrapped.array)).toBe(false)
+    expect(isReadonly(wrapped.array[0])).toBe(false)
+  })
+```
+
+
+
+```reactive.spec.ts
+it('shallow reactive', () => {
+    const original = {
+      nested: {
+        foo: 1
+      },
+      array: [{ bar: 2 }]
+    }
+    const wrapped = shallowReactive(original)
+    expect(isReactive(wrapped)).toBe(true)
+    expect(isReactive(wrapped.nested)).toBe(false)
+    expect(isReactive(wrapped.array)).toBe(false)
+    expect(isReactive(wrapped.array[0])).toBe(false)
+  })
+```
+
+
+
+
+
+同样在 proxy 进行 get 操作的拦截处进行判断
+
+```baseHanlders.ts
+function createGetter(isReadonly: boolean = false, isShallow: boolean = false) {
+  return function get(target, key) {
+    if(key === ReactiveFlags.IS_REACTIVE) {
+      return !isReadonly
+    } else if (key === ReactiveFlags.IS_READONLY) {
+      return isReadonly
+    }
+
+    const res = Reflect.get(target, key)
+
+    if(isShallow) {  // 新增
+      return res
+    }
+
+    if(isObject(res)) {
+      return isReadonly ? readonly(res) : reactive(res)
+    }
+
+    if (!isReadonly) {
+     // 依赖收集
+     track(target, key)
+   }
+    return res
+  }
+}
+```
+
+shallowReactive 与 shallowReadonly 仅在 get 创建时的参数不同，即：
+
+```reactive.ts
+export function shallowReadonly(raw) {
+  return createActiveObject(raw, shallowReadonlyHandlers)
+}
+
+export function shallowReactive(raw) {
+  return createActiveObject(raw, shallowReactiveHandlers)
+}
+
+```
+
+```baseHandlers.ts
+const shallowReadonlyGet = createGetter(true, true)
+const shallowReactiveGet = createGetter(false, true)
+```
+
+
+
+isProxy 用于判断一数据类型是否为 reactive、readonly、shallowReactive、shallowReadonly 创建：
+
+```isProxy.spec.ts
+describe('isProxy', () => {
+  it('happy path', () => {
+    const obj = { foo : 1, nested: { bar: 2 }, array: [{ baz: 3 }] }
+    const reactive_obj = reactive(obj)
+    const readonly_obj = readonly(obj)
+    const shallow_reactive_obj = shallowReactive(obj)
+    const shallow_readonly_obj = shallowReadonly(obj)
+    expect(isProxy(obj)).toBe(false)
+    expect(isProxy(reactive_obj)).toBe(true)
+    expect(isProxy(readonly_obj)).toBe(true)
+    expect(isProxy(shallow_reactive_obj)).toBe(true)
+    expect(isProxy(shallow_readonly_obj)).toBe(true)
+  })
+})
+```
+
+
+
+```reactive.ts
+export function isProxy(raw) {
+  return isReactive(raw) || isReadonly(raw)
+}
+```
+
+
+
+#### ref
 
