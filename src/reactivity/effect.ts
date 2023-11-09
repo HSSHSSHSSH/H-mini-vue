@@ -3,7 +3,7 @@ let effectStack: ReactiveEffect[] = [] // 用于存储副作用函数的栈
 let targetMap = new WeakMap() // 用于存储依赖项的 Map
 let shouldTrack = false // 是否需要收集依赖
 
-class ReactiveEffect {
+export class ReactiveEffect { // 副作用函数类
   private _fn: Function
   public deps: Set<any> | null // 与该副作用函数相关的依赖项
   public options: {
@@ -11,7 +11,7 @@ class ReactiveEffect {
     onStop?: Function
   } | null // 副作用函数的配置项
   public active: boolean = true
-  constructor(fn, options) {
+  constructor(fn, options?) {
     this._fn = fn
     this.deps = new Set() // 所有与该副作用函数相关的依赖项
     this.options = options
@@ -21,11 +21,12 @@ class ReactiveEffect {
     activeEffect = this
     // 将 activeEffect 放入 effectStack 的首位
     effectStack.push(this)
-      cleanup(this) // 清除与该副作用函数相关的依赖项
-    this._fn() // 有收集依赖的操作
+    cleanup(this) // 清除与该副作用函数相关的依赖项
+    let res = this._fn() // 有收集依赖的操作
     // 将 activeEffect 从 effectStack 中移除
     effectStack.pop()
     activeEffect = effectStack[effectStack.length - 1] // 维护此变量用于仅在注册副作用函数阶段进行 track 操作
+    return res
   }
 
   stop() {
@@ -52,12 +53,7 @@ export function track(target, key) {
   if (!deps) {
     depsMap.set(key, (deps = new Set()))
   }
-  if (!activeEffect) return
-  deps.add(activeEffect)
-  if (!activeEffect.deps) {
-    activeEffect.deps = new Set()
-  }
-  activeEffect.deps.add(deps)
+  trackEffect(deps)
 }
 
 export function trackEffect(deps: Set<any>) {

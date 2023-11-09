@@ -25,6 +25,7 @@ describe('cleanup', () => {
     expect(fn).toHaveBeenCalledTimes(2)
     obj.ok = 0
     expect(fn).toHaveBeenCalledTimes(3)
+    // 依赖项已经被清除，所以不会再次执行副作用函数
     obj.text = 'hello world 3'
     expect(fn).toHaveBeenCalledTimes(3)
     obj.ok = true

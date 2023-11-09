@@ -1121,3 +1121,533 @@ export function isProxy(raw) {
 
 #### ref
 
+官方文档中对 ref 的定义如下：
+
+ref 对象是可更改的，也就是说你可以为 `.value` 赋予新的值。它也是响应式的，即所有对 `.value` 的操作都将被追踪，并且写操作会触发与之相关的副作用。
+
+如果将一个对象赋值给 ref，那么这个对象将通过 reactive 转为具有深层次响应式的对象。这也意味着如果对象中包含了嵌套的 ref，它们将被深层地解包。
+
+
+
+由上述描述，我们可知：
+
+- ref 对象有一 value 属性，即 ref 对象的操作核心
+- ref 满足响应式数据
+- 若传入的变量为一对象，则通过 reactive 转化为响应式数据
+
+则有：
+
+```ref.spec.ts
+describe('ref', () => {
+	it('happy path', () => {
+		const a = ref(1)
+		expect(a.value).toBe(1)
+	})
+	
+	it('shoule be reactive', () => {
+		const a = ref(1)
+		let dummy
+		let calls = 0
+		
+		effect(() => {
+			dummy = a.value + 1
+			calls++
+		})
+        
+        expect(dummy).toBe(2)
+        expect(calls).toBe(1)
+        
+        a.value = 2
+        expect(dummy)toBe(3)
+        expect(calls.toBe(2)
+        
+        // 相同的值不触发 set
+        a.value = 2
+        expect(dummy)toBe(3)
+        expect(calls.toBe(2)
+		
+	})
+	
+	it('should make nested properties reactive', () => {
+		const a = ref({
+			count: 1
+		})
+		
+		let dummy
+		
+		effect(() => {
+			dummy = a.value.count + 1
+		})
+		
+		expect(dummy).toBe(2)
+		
+		a.value.count = 2
+		
+		expect(dummy).toBe(3)
+		
+		
+	})
+	
+})
+```
+
+
+
+因 ref 在实际使用时常传入的是值类型，无法使用 proxy，故我们需自行创建一类，拦截 get 与 set 操作：
+
+``` ref.ts
+class RefImpl {
+	private _value: any
+	constructor(value) {
+		this._value = value
+	}
+	
+	get value() {
+		// 执行副作用函数的收集 即 track
+		return this._value
+	}
+	
+	set value(newVal) {
+		if (Object.is(this._value, newVal)) return // 相同的值不进行set
+		// 执行副作用函数集合的触发 即 trigger
+		this._value = newVal
+	}
+	 	
+}
+
+function ref(value) {
+	return new RefImpl(value)
+}
+
+```
+
+此时 happy path 测试已通过。
+
+以下进行依赖的收集与触发，在 RefImpl 中添加 deps 为副作用函数的集合：
+
+```ref.ts
+class RefImpl {
+	//..其余代码...//
+	private _deps:Set<any>
+	
+	constructor(value) {
+		//...其余代码...//
+		this._dps = new Set()
+	}
+	//..其余代码...//
+}
+```
+
+观察之前实现的 track 代码与 trigger 代码：
+
+```effect.ts
+export function track (target, key) {
+  if(!activeEffect) return
+  let depsMap = targetMap.get(target)
+  if (!depsMap) {
+    targetMap.set(target, (depsMap = new Map()))
+  }
+  let deps = depsMap.get(key)
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()))
+  }
+  deps.add(activeEffect)
+  if (!activeEffect.deps) {
+    activeEffect.deps = new Set()
+  }
+  activeEffect.deps.add(deps)
+}
+
+// 触发依赖
+export function trigger (target, key) {
+  let depsMap = targetMap.get(target)
+  if (!depsMap) return
+  let deps: Set<ReactiveEffect> = depsMap.get(key)
+  if (!deps) return
+  // deps.forEach(effect => {
+  //   effect.run()
+  // })
+  let depsEffects = new Set(deps)
+  depsEffects.forEach(effect => {
+    effect.run()
+  })
+}
+```
+
+包括了找到正确的副作用函数集合，收集/触发集合中的元素两部分，在 ref 中我们已知正确的依赖集合，故可将 track 与 trigger 函数的触发依赖几个的代码抽离，即：
+
+```effect.ts
+export function track(target, key) {
+  if (!activeEffect) return
+  let depsMap = targetMap.get(target)
+  if (!depsMap) {
+    targetMap.set(target, (depsMap = new Map()))
+  }
+  let deps = depsMap.get(key)
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()))
+  }
+  trackEffect(deps) // 抽离收集的部分
+}
+
+export function trackEffect(deps: Set<any>) {
+  if (!activeEffect) return
+  deps.add(activeEffect)
+  if (!activeEffect.deps) {
+    activeEffect.deps = new Set()
+  }
+  activeEffect.deps.add(deps)
+}
+
+export function trigger(target, key) {
+  let depsMap = targetMap.get(target)
+  if (!depsMap) return
+  let deps: Set<ReactiveEffect> = depsMap.get(key)
+  if (!deps) return
+  triggerEffect(deps) // 抽离触发的部分
+}
+
+export function triggerEffect(deps: Set<any>) {  
+  let depsEffects = new Set(deps)
+  depsEffects.forEach((effect) => {
+    if (effect.options && effect.options.scheduler) { // 如果有配置scheduler，则执行scheduler
+      effect.options.scheduler(effect.run.bind(effect))
+    } else {
+      effect.run()
+    }
+  })
+}
+```
+
+在 ref 中仅使用收集/触发的操作，即：
+
+```ref.ts
+class RefImpl {
+	//其余代码//
+	
+	get value() {
+		trackEffect(this._deps)
+		return this._value
+	}
+	set value(newVal) {
+		if (Object.is(this._value, newVal)) return // 相同的值不进行set
+		// 执行副作用函数集合的触发 即 trigger
+		this._value = newVal
+		triggerEffect(this._deps)
+	}
+}
+```
+
+此时 shoule be reactive 测试通过。
+
+对于 shoule make nested properties reactive 测试，仅需在 constructor 中判断 value 是否为引用类型并用 reactive 包裹即可：
+
+```ref.ts
+class RefImpl {
+	//..其余代码..//
+	constructor (value) {
+		this._value = isObject(value) ? reactive(value) : value
+		//..其余代码..//
+	}
+	//..其余代码..//
+}
+```
+
+
+
+以下我们实现 API：isRef、unRef、proxyRefs。
+
+isRef 即判断数据类型是否为 ref：
+
+```ref.spec.ts
+it('isRef', () => {
+	const a = 1
+    const ref_a = ref(a)
+    const original = { foo: 1 }
+    const ref_original = ref(original)
+
+    expect(isRef(a)).toBe(false)
+    expect(isRef(ref_a)).toBe(true)
+    expect(isRef(original)).toBe(false)
+    expect(isRef(ref_original)).toBe(true)
+})
+```
+
+只需在 RefImpl 中加入一个标志即可，此处标志为 __v_isRef
+
+```ref.ts
+class RefImpl {
+	//...其余代码...//
+	public __v_isRef: boolean: true
+}
+
+function isRef(ref) {
+	return !!ref.__v_isRef
+}
+```
+
+<strong>注意这个属性是固定的，在时机使用vue3时，若以对象的某一属性键为 __v_isRef，且值为 true，则用此函数判断后返回结果为 true，即：</strong>
+
+```index.vue
+//..其余代码...//
+import { isRef } from 'vue';
+const fake_ref = {
+	__v_isRef: true
+}
+
+console.log(isRef(fake_ref)) // true
+//..其余代码...//
+```
+
+unRef 判断对象是否为 ref ，若是则返回 ref.value , 否则直接返回 ref，即：
+
+```ref.spec.ts
+ it('unRef', () => {
+    const a = 1
+    const ref_a = ref(a)
+    expect(unRef(a)).toBe(1)
+    expect(unRef(ref_a)).toBe(1)
+  })
+```
+
+实现：
+
+```ref.ts
+export function unRef(ref) {
+  return isRef(ref) ? ref.value : ref
+}
+```
+
+
+
+当我们在实际使用时，若 ref 的 value 为一对象，其中一属性值仍为 ref 时，在使用中就需多次调用 .value，即：
+
+```ts
+const a = ref({
+    age: ref(10)
+})
+
+const age = a.value.age.value
+```
+
+故希望减少 .value 的使用，即：
+
+```ref.spec.ts
+it('proxyRefs', () => {
+    const user = {
+      age: ref(10),
+      name: '蛙叫你'
+    }
+    const proxyUser = proxyRefs(user)
+    expect(user.age.value).toBe(10)
+    expect(proxyUser.age).toBe(10)
+    expect(proxyUser.name).toBe('蛙叫你')
+    
+    // 修改proxyUser的值，user也会变化
+    proxyUser.age = 20
+    expect(proxyUser.age).toBe(20)
+    expect(user.age.value).toBe(20)
+
+    proxyUser.age = ref(30)
+    expect(proxyUser.age).toBe(30)
+    expect(user.age.value).toBe(30)
+
+  })
+```
+
+只需在访问属性时，进行判断是否为 ref 类型，若是则返回 .value 属性，在赋值时判断是否是将非 ref 的值赋给 ref 的值即可：
+
+```ref.spec.ts
+export function proxyRefs (ref) {
+	return new Proxy(ref, {
+		get(target, key) {
+			return isRef(target[key]) ? target[key].value : target[key]
+		}
+		
+		set(target, key, value) {
+			if(isRef(target[key]) && !isRef(value)) {
+				return target[key].value = value
+			} else {
+				return Reflect(target, key. value)
+			}
+		}
+	})
+}
+```
+
+整理代码如下：
+
+```ref.ts
+import { isObject } from '../shared'
+import { trackEffect, triggerEffect } from './effect'
+import { reactive } from './reactive'
+
+class RefImpl {
+  private _value: any
+  private _rawValue: any
+  public deps: Set<any>
+  public __v_isRef: boolean = true
+  constructor(value) {
+    this._rawValue = value
+    this._value = convert(this._rawValue)
+    this.deps = new Set()
+  }
+  get value() {
+    trackEffect(this.deps)
+    return this._value
+  }
+
+  set value(newValue) {
+    if (Object.is(newValue, this._rawValue)) return
+    this._rawValue = newValue
+    this._value = convert(newValue)
+    triggerEffect(this.deps)
+  }
+}
+
+function convert(value) {
+  return isObject(value) ? reactive(value) : value
+}
+
+export function ref(value) {
+  return new RefImpl(value)
+}
+
+export function isRef(ref) {
+  return !!ref.__v_isRef
+}
+
+export function unRef(ref) {
+  return isRef(ref)? ref.value: ref
+}
+
+export function proxyRefs(objectWithRefs) {
+  return new Proxy(objectWithRefs, {
+    get(target, key) {
+      return unRef(Reflect.get(target, key))
+    },
+    set(target, key, value) {
+      if (isRef(target[key]) && !isRef(value)) {
+        return target[key].value = value
+      } else {
+        return Reflect.set(target, key, value)
+      }
+    }
+  })
+}
+
+
+```
+
+
+
+#### 计算属性 computed
+
+computed 接受一有返回值的函数为参，返回的数据向外暴露 value 属性，compute 仅发生在 计算属性首次被访问时与依赖的变量值发生改变且再次访问时，即 lazily :
+
+```computed.spec.ts
+describe('computed', () => {
+	it('happy path', () => {
+		const user = reactive({
+			age: 1
+		})
+		const age = computed(user)
+		
+		expect(age.value).toBe(1)
+	})
+	
+	it('should compute lazily', () => {
+		const value = reactive({
+			foo: 1
+		})
+		const getter = jest.fn(() => {
+			return value.foo
+		})
+		
+		const cValue = computed(getter)
+		
+		expect(getter).not.toHaveBeenCalled()
+		
+		expect(cValue.value).toBe(1) // 此时首次访问计算属性的 value
+		expect(getter).toHaveBeenCalledTimes(1)
+		
+		// 再次访问 cValue.value 时，依赖变量未发生改变，不 compute
+		
+		cValue.value
+		
+		expect(getter).toHaveBeenCalledTimes(1)
+		
+		value.foo = 2 
+		// 依赖发生改变，为访问
+		expect(getter).toHaveBeenCalledTimes(1)
+		
+		// 再次访问 cValue.value 且依赖发生改变， compute
+		
+		cValue.value
+		expect(getter).toHaveBeenCalledTimes(2)
+		
+	})
+})
+```
+
+同 ref ，创建一个类，暴露 value 的 get，value 即为接收函数 getter 的返回值：
+
+
+
+```computed.ts
+class ComputedImpl {
+  private _getter: Function
+  private _value: any
+
+  constructor(getter) {
+    this._getter = getter
+  }
+
+  get value() {
+    return this._value = this._getter()
+  }
+}
+
+export function computed(getter) {
+  return new ComputedImpl(getter)
+}
+```
+
+此时第一个测试已通过。
+
+
+
+此时需要保证仅当依赖的变量发生改变且计算属性的 .value 被访问时，再次执行 getter，故需要一个变量在副作用函数执行时更改表示此时依赖的变量发生改变，在 get 时判断此标志，成功后运行 getter 并返回新值，即：
+
+```computed.ts
+import { ReactiveEffect } from './effect'
+
+class ComputedImpl {
+  private _getter: Function
+  private _dirty: boolean = true
+  private _value: any
+  private _effect: ReactiveEffect
+  constructor(getter: Function) {
+    this._getter = getter
+    this._effect = new ReactiveEffect(getter, {
+      scheduler: () => {
+        if (!this._dirty) {
+          this._dirty = true
+        }
+      }
+    })
+  }
+  get value() {
+    if (this._dirty) {
+      this._dirty = false
+      this._value = this._effect.run()  
+    }
+    return this._value
+  }
+}
+
+export function computed(getter) {
+  return new ComputedImpl(getter)
+}
+```
+
