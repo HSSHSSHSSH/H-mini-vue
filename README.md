@@ -769,6 +769,199 @@ export function effect(fn, options = {}) {
 
 
 
+#### watch
+
+watch 的实现基于 effect 的 scheduler，本质上是注册一个带有 scheduler 的副作用函数，即对 effect 的二次封装。
+
+watch接受两个参数，一个为观测的对象，一个为观测对象变化后触发的回调，回调在第一次不执行，往后每次观测对象发生变化时，执行回调，即：
+
+```watch.spec.ts
+describe('watch', () => {
+	it('happy path', () => {
+		const obj = reactive({
+			foo: 1
+		})
+        const fn = jest.fn(() => {
+        	return obj.foo
+        })
+		watch(obj,fn)
+		expect(fn).toHaveBeenCalledTimes(0)
+		obj.foo = 2
+		expect(fn).toHaveBeenCalledTimes(1)
+	})
+})
+```
+
+根据上述对回调的表述，符合 effect 的 scheduler ，故有：
+
+```watch.ts
+function watch(source, cb) {
+	effect(() => traverse(source), {
+		scheduler: cb
+	})
+}
+
+function traverse(value: any, seen = new Set()) { // 更通用的读取操作
+  // 若要读取的值是原始值，或已被读取，则直接返回
+  if(typeof value !== 'object' || value === null || seen.has(value)) return
+ 
+  // 表示当前 value 被读取
+  seen.add(value)
+
+  // 遍历读取 value 的所有属性
+  for(let key in value) {
+    traverse(value[key], seen)
+  }
+
+  return value
+}
+```
+
+
+
+watch 观测的对象有可能是一个 getter函数，即：
+
+```watch.spec.ts
+it('receive getter', () => {
+    const obj = reactive({
+      foo: 1
+    })
+
+    const fn = jest.fn()
+
+    watch(
+      () => obj.foo,
+      fn
+    )
+
+    expect(fn).toHaveBeenCalledTimes(0)
+    obj.foo++
+    expect(fn).toHaveBeenCalledTimes(1)
+
+ })
+```
+
+只需判断观测的对象是否为函数，然后再进行赋值即可：
+
+```watch.ts
+export function watch(source, cb) {
+  let getter = typeof source === 'function' ?  source : () => traverse(source)
+	effect(() => getter(), {
+		scheduler: () => cb()
+	})
+}
+```
+
+再使用时，我们通常想要同时拿到新值与旧值，此时需要实现 effect 的 lazy 属性：
+
+```watch.spec.ts
+  it('get newVal and oldVal', () => {
+    const obj = reactive({
+      foo: 1
+    })
+
+    let dummy
+    watch(
+      () => obj.foo,
+      (newVal, oldVal) => {
+        dummy = [newVal, oldVal]
+      }
+    )
+
+    obj.foo++
+    expect(dummy).toEqual([2, 1])
+  })
+```
+
+
+
+
+
+lazy 若为 true，在 effect 中副作用函数不会立即执行，需要我们手动执行，这样就有了对 newVal 与 oldVal 的操作空间；即在 watch 中手动调用副作用函数；在 effect 中加入 lazy 后的代码如下：
+
+```effect.ts
+export function effect(fn, options: any = {}) {
+  // 注册副作用函数
+  const _effect = new ReactiveEffect(fn, options)
+  if (!options.lazy) { // 新增
+    _effect.run()
+  }
+  const runner: any = _effect.run.bind(_effect)
+  runner.stop = _effect.stop.bind(_effect)
+  return runner
+}
+```
+
+
+
+watch 完善后的代码如下：
+
+```watch.ts
+export function watch(source, cb) {
+  let oldVal, newVal
+  let getter = typeof source === 'function' ?  source : () => traverse(source)
+	const runner = effect(() => getter(), {
+		scheduler: () => {
+      newVal = runner()
+      cb(newVal, oldVal)
+      oldVal = newVal
+    },
+    lazy: true
+	})
+  oldVal = runner() // 仅第一次执行
+}
+```
+
+有时我们希望 watch 注册的副作用函数立即执行，即 immediate：
+
+```watch.spec.ts
+it('immediate', () => {
+    const obj = reactive({
+      foo: 1
+    })
+
+    let dummy
+    const fn = jest.fn((newVal, oldVal) => {
+      dummy = [newVal, oldVal]
+    },)
+    watch(
+      () => obj.foo,
+      fn,
+      { immediate: true }
+    )
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(dummy).toEqual([1, undefined])
+  })
+```
+
+只需加一个判断即可：
+
+```watch.ts
+export function watch(source, cb,options:any = {}) {
+  let oldVal, newVal
+  const scheduler = () => {
+    newVal = runner()
+    cb(newVal, oldVal)
+    oldVal = newVal
+  }
+  let getter = typeof source === 'function' ?  source : () => traverse(source)
+	const runner = effect(() => getter(), {
+		scheduler,
+    lazy: true
+	})
+  if (options.immediate) {
+    scheduler()
+  } else {
+    
+    oldVal = runner() // 仅第一次执行
+  }
+}
+```
+
+
+
+
+
 ### Reactive
 
 #### readonly 功能

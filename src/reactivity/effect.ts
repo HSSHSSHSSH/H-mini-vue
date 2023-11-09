@@ -1,15 +1,16 @@
 let activeEffect: ReactiveEffect | null // 当前活跃的 ReactiveEffect 实例
 let effectStack: ReactiveEffect[] = [] // 用于存储副作用函数的栈
 let targetMap = new WeakMap() // 用于存储依赖项的 Map
-let shouldTrack = false // 是否需要收集依赖
 
-export class ReactiveEffect { // 副作用函数类
+export class ReactiveEffect {
+  // 副作用函数类
   private _fn: Function
   public deps: Set<any> | null // 与该副作用函数相关的依赖项
   public options: {
-    scheduler?: Function
-    onStop?: Function
-  } | null // 副作用函数的配置项
+    scheduler?: Function // 调度器函数
+    onStop?: Function // 停止副作用函数时执行的函数
+    lazy?: boolean // 是否为惰性副作用函数
+  } // 副作用函数的配置项
   public active: boolean = true
   constructor(fn, options?) {
     this._fn = fn
@@ -18,14 +19,16 @@ export class ReactiveEffect { // 副作用函数类
   }
 
   run() {
+    let res
     activeEffect = this
     // 将 activeEffect 放入 effectStack 的首位
     effectStack.push(this)
     cleanup(this) // 清除与该副作用函数相关的依赖项
-    let res = this._fn() // 有收集依赖的操作
+    res = this._fn() // 有收集依赖的操作
     // 将 activeEffect 从 effectStack 中移除
     effectStack.pop()
     activeEffect = effectStack[effectStack.length - 1] // 维护此变量用于仅在注册副作用函数阶段进行 track 操作
+
     return res
   }
 
@@ -74,10 +77,11 @@ export function trigger(target, key) {
   triggerEffect(deps)
 }
 
-export function triggerEffect(deps: Set<any>) {  
+export function triggerEffect(deps: Set<any>) {
   let depsEffects = new Set(deps)
   depsEffects.forEach((effect) => {
-    if (effect.options && effect.options.scheduler) { // 如果有配置scheduler，则执行scheduler
+    if (effect.options && effect.options.scheduler) {
+      // 如果有配置scheduler，则执行scheduler
       effect.options.scheduler(effect.run.bind(effect))
     } else {
       effect.run()
@@ -85,10 +89,12 @@ export function triggerEffect(deps: Set<any>) {
   })
 }
 
-export function effect(fn, options = {}) {
+export function effect(fn, options: any = {}) {
   // 注册副作用函数
   const _effect = new ReactiveEffect(fn, options)
-  _effect.run()
+  if (!options.lazy) {
+    _effect.run()
+  }
   const runner: any = _effect.run.bind(_effect)
   runner.stop = _effect.stop.bind(_effect)
   return runner
