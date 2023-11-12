@@ -45,7 +45,7 @@ module.exports = {
 };
 ```
 
-# reactive 核心
+# reactive 
 
 ## effect & reactive 收集依赖与触发依赖
 
@@ -962,6 +962,8 @@ export function watch(source, cb,options:any = {}) {
 
 
 
+
+
 ### Reactive
 
 #### readonly 功能
@@ -1843,4 +1845,8 @@ export function computed(getter) {
   return new ComputedImpl(getter)
 }
 ```
+
+# runtime-core
+
+### 初始化 component 主流程
 

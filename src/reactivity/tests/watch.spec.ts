@@ -73,4 +73,5 @@ describe('watch', () => {
     expect(dummy).toEqual([1, undefined])
   })
 
+
 })
