@@ -30,15 +30,29 @@ function mountElement(vnode, container, options) {
     createElement,
     setElementText,
     insert,
+    patchProps
   } = options
   // 创建 DOM 元素
   const el = createElement(vnode.type)
   // 若children 是字符串，则为文本类型
   if(typeof vnode.children === 'string') {
     setElementText(el, vnode.children)
-  } else {
-
+  } else if(Array.isArray(vnode.children)) {
+    vnode.children.forEach(child => {
+      path(null, child, el, options)
+    })
+  }
+  // 设置属性
+  if(vnode.props) {
+    for(let key in vnode.props) {
+      /**
+       * 在设置属性时，优先设置元素的 DOM properties
+       */
+      patchProps(el, key, null, vnode.props[key])
+    }
   }
   // 将 DOM 元素挂载到容器上
   insert(el, container)
 }
+
+// 有一些属性是只读的，因此只能使用 setAttribute 来设置

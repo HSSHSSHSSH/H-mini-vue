@@ -1,21 +1,48 @@
-
 import { createRenderer } from '../../../lib/guide-mini-vue.esm.js'
+import {
+  createElement,
+  setElementText,
+  insert,
+  patchProps,
+} from './handlers/elementHandlers.js'
 const renderer = createRenderer({
-  // 用于创建元素
-  createElement(tag) {
-    return document.createElement(tag)
-  },
-  // 用于设置文本节点
-  setElementText(el,text) {
-    el.innerHTML = text
-  },
-  // 用于在给定 parent 上挂在 vnode
-  insert(el, parent, anchor = null) {
-    parent.insertBefore(el, anchor)
-  }
+  createElement,
+  setElementText,
+  insert,
+  patchProps,
 })
+
+
+
 const vnode = {
   type: 'h1',
-  children: '乌迪尔!! 乌迪尔!!!!!!!'
+  children: [
+    {
+      type: 'form',
+      props: {
+        class: 'my_class1',
+        id: 'form2',
+      },
+      children: '4560',
+    },
+    {
+      type: 'input',
+      props: {
+        class:['my_class2', 'my_class3'],
+        form: 'form2',
+      },
+      children: '乌迪尔！！乌迪尔！！！',
+    },
+    {
+      type: 'div',
+      props: {
+        class: {
+          my_class4: true,
+          my_class5: false,
+        }
+      },
+      children: '蛙叫你'
+    }
+  ],
 }
 renderer(vnode, document.getElementById('app'))
