@@ -4,12 +4,14 @@ import {
   setElementText,
   insert,
   patchProps,
+  unmount,
 } from './handlers/elementHandlers.js'
 const renderer = createRenderer({
   createElement,
   setElementText,
   insert,
   patchProps,
+  unmount
 })
 
 
@@ -46,3 +48,4 @@ const vnode = {
   ],
 }
 renderer(vnode, document.getElementById('app'))
+

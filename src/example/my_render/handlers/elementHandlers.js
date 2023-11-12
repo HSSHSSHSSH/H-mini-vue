@@ -30,6 +30,14 @@ function patchProps(el, key, preValue, value) {
   }
 }
 
+// 用于卸载元素
+function unmount(vnode) {
+  const parent = vnode.el.parentNode
+  parent.removeChild(vnode.el)
+}
+
+
+
 function shouldSetAsProps(el, key, value) {
   if (key === 'form' && el.tagName === 'INPUT') return false
   return key in el
@@ -59,4 +67,5 @@ export {
   setElementText,
   insert,
   patchProps,
+  unmount
 }

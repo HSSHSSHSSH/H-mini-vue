@@ -1,13 +1,15 @@
 
 
 export function createRenderer(options) {
+  const {unmount} = options
   function render(vnode, container) {
     if(vnode) {
       // 若 vnode 存在，则调用 patch
       path(container._vode, vnode, container, options)
     } else {
       if(container._vnode) { // 若旧的 vnode 存在，则卸载
-        container.innerHTML = ''
+        // container.innerHTML = ''
+        unmount(container._vnode)
       } 
     }
     // 将本次 vnode 存储，作为下次的旧 vnode
@@ -33,7 +35,7 @@ function mountElement(vnode, container, options) {
     patchProps
   } = options
   // 创建 DOM 元素
-  const el = createElement(vnode.type)
+  const el = vnode.el = createElement(vnode.type) // 将 el 挂载到 vnode 上
   // 若children 是字符串，则为文本类型
   if(typeof vnode.children === 'string') {
     setElementText(el, vnode.children)
