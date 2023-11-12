@@ -11,10 +11,8 @@ const renderer = createRenderer({
   setElementText,
   insert,
   patchProps,
-  unmount
+  unmount,
 })
-
-
 
 const vnode = {
   type: 'h1',
@@ -30,22 +28,32 @@ const vnode = {
     {
       type: 'input',
       props: {
-        class:['my_class2', 'my_class3'],
+        class: ['my_class2', 'my_class3'],
         form: 'form2',
       },
       children: '乌迪尔！！乌迪尔！！！',
     },
     {
-      type: 'div',
+      type: 'button',
       props: {
         class: {
           my_class4: true,
           my_class5: false,
-        }
+        },
+        onClick: [
+          () => {
+            console.log('蛙叫你')
+          },
+          () => {
+            console.log('乌迪尔')
+          },
+        ],
+        onmouseenter: () => {
+          console.log('onmouseup')
+        },
       },
-      children: '蛙叫你'
-    }
+      children: '蛙叫你',
+    },
   ],
 }
 renderer(vnode, document.getElementById('app'))
-

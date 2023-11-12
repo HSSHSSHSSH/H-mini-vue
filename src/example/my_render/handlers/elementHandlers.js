@@ -12,10 +12,33 @@ function insert(el, parent, anchor = null) {
 }
 // 用于设置元素属性
 function patchProps(el, key, preValue, value) {
-  if(key === 'class') {
+  if (/^on/.test(key)) {
+    // 处理事件
+    const eventName = key.slice(2).toLowerCase()
+    let invokers = el._vei || (el._vei = {})
+    let invoker = invokers[eventName]
+    if (value) {
+      if (!invoker) {
+        invoker = el._vei[eventName] = (e) => {
+          if(Array.isArray(invoker.value)) {
+            invoker.value.forEach(fn => fn(e))
+          } else {
+            invoker.value(e)
+          }
+        }
+        invoker.value = value
+        el.addEventListener(eventName, invoker)
+      } else {
+        invoker.value = value
+      }
+    } else if (invoker) {
+      el.removeEventListener(eventName, invoker)
+      el._vei = null
+    }
+  } else if (key === 'class') {
     // 处理 class
     el.className = normalizeClass(value)
-  } else if (shouldSetAsProps(el, key, preValue,value)) {
+  } else if (shouldSetAsProps(el, key, preValue, value)) {
     // 判断是否是 DOM properties
     let type = typeof el[key]
     if (type === 'boolean' && value === '') {
@@ -35,8 +58,6 @@ function unmount(vnode) {
   const parent = vnode.el.parentNode
   parent.removeChild(vnode.el)
 }
-
-
 
 function shouldSetAsProps(el, key, value) {
   if (key === 'form' && el.tagName === 'INPUT') return false
@@ -62,10 +83,4 @@ function normalizeClass(value) {
   return res.trim() // 去掉首尾空格
 }
 
-export {
-  createElement,
-  setElementText,
-  insert,
-  patchProps,
-  unmount
-}
+export { createElement, setElementText, insert, patchProps, unmount }
