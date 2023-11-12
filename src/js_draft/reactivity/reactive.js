@@ -1,7 +1,7 @@
 // import { track, trigger } from './effect'
 const { track, trigger } = require('./effect')
 
-function reactive(raw) {
+ function reactive(raw) {
   return new Proxy(raw, {
     get(target, key) {
       // 依赖收集
