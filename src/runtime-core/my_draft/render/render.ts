@@ -1,3 +1,6 @@
+import { NodeFlags } from "./flags"
+
+
 export function createRenderer(options) {
   const { unmount } = options
   function render(vnode, container) {
@@ -24,7 +27,12 @@ function path(n1, n2, container, options) {
   //   unmount(n1)
   //   n1 = null
   // } // ???
-  
+  const {
+    createText,
+    createComment,
+    setNodeValue,
+    insert
+  } = options
   const { type } = n2
   if (typeof type === 'string') {
     if (!n1) {
@@ -35,8 +43,28 @@ function path(n1, n2, container, options) {
     }
   } else if (typeof type === 'object') {
     // 组件
+  } else if (type === NodeFlags.Text) { // 文本节点
+    if (!n1) {  // 旧节点不存在 创建
+      const el = (n2.el = createText(n2.children))
+      insert(el, container)
+    } else { // 旧节点存在 更新
+      const el = (n2.el = n1.el)
+      if (n2.children !== n1.children) {
+        setNodeValue(el, n2.children)
+      }
+    }
+  } else if (type === NodeFlags.Comment) { // 注释节点
+    if (!n1) {  // 旧节点不存在 创建
+      const el = (n2.el = createComment(n2.children))
+      insert(el, container)
+    } else { // 旧节点存在 更新
+      const el = (n2.el = n1.el)
+      if (n2.children !== n1.children) {
+        setNodeValue(el, n2.children)
+      }
+    }
   } else {
-    // 其他类型
+    // 其他
   }
 }
 

@@ -1,10 +1,13 @@
-import { createRenderer, effect, ref } from '../../../lib/guide-mini-vue.esm.js'
+import { createRenderer, effect, ref, NodeFlags } from '../../../lib/guide-mini-vue.esm.js'
 import {
   createElement,
   setElementText,
   insert,
   patchProps,
   unmount,
+  createText,
+  createComment,
+  setNodeText,
 } from './handlers/elementHandlers.js'
 const renderer = createRenderer({
   createElement,
@@ -12,18 +15,27 @@ const renderer = createRenderer({
   insert,
   patchProps,
   unmount,
+  createText,
+  createComment,
+  setNodeText,
 })
 
-
-
-
-  const vnode = {
-    type: 'div',
-    props: {
-      onClick: () => {
-        alert('父元素 clicked')
-      }
+const vnode = {
+  type: 'div',
+  props: {
+    onClick: () => {
+      alert('父元素 clicked')
     },
-    children: '父元素',
-  }
-  renderer(vnode, document.getElementById('app'))
+  },
+  children: [
+    {
+      type: NodeFlags.Text,
+      children: '蛙叫你'
+    },
+    {
+      type: NodeFlags.Comment,
+      children: '乌迪尔乌迪尔'
+    }
+  ],
+}
+renderer(vnode, document.getElementById('app'))

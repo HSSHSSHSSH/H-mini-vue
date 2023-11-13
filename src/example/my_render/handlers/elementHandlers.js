@@ -1,3 +1,5 @@
+
+
 // 用于创建元素
 function createElement(tag) {
   return document.createElement(tag)
@@ -62,6 +64,18 @@ function unmount(vnode) {
   parent.removeChild(vnode.el)
 }
 
+// 用于创建文本节点
+function createText(text) {
+  return document.createTextNode(text)
+}
+// 用于创建注释节点
+function createComment(text) {
+  return document.createComment(text)
+}
+// 用于更改节点文本内容
+function setNodeText(el, text) {
+  el.nodeValue = text
+}
 
 // 有一些属性是只读的，因此只能使用 setAttribute 来设置
 function shouldSetAsProps(el, key, value) {
@@ -88,4 +102,13 @@ function normalizeClass(value) {
   return res.trim() // 去掉首尾空格
 }
 
-export { createElement, setElementText, insert, patchProps, unmount }
+export { 
+  createElement, 
+  setElementText, 
+  insert, 
+  patchProps, 
+  unmount,
+  createText,
+  createComment,
+  setNodeText,
+ }
