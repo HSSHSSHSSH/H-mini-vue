@@ -1,4 +1,4 @@
-import { createRenderer } from '../../../lib/guide-mini-vue.esm.js'
+import { createRenderer, effect, ref } from '../../../lib/guide-mini-vue.esm.js'
 import {
   createElement,
   setElementText,
@@ -14,46 +14,16 @@ const renderer = createRenderer({
   unmount,
 })
 
-const vnode = {
-  type: 'h1',
-  children: [
-    {
-      type: 'form',
-      props: {
-        class: 'my_class1',
-        id: 'form2',
-      },
-      children: '4560',
+
+
+
+  const vnode = {
+    type: 'div',
+    props: {
+      onClick: () => {
+        alert('父元素 clicked')
+      }
     },
-    {
-      type: 'input',
-      props: {
-        class: ['my_class2', 'my_class3'],
-        form: 'form2',
-      },
-      children: '乌迪尔！！乌迪尔！！！',
-    },
-    {
-      type: 'button',
-      props: {
-        class: {
-          my_class4: true,
-          my_class5: false,
-        },
-        onClick: [
-          () => {
-            console.log('蛙叫你')
-          },
-          () => {
-            console.log('乌迪尔')
-          },
-        ],
-        onmouseenter: () => {
-          console.log('onmouseup')
-        },
-      },
-      children: '蛙叫你',
-    },
-  ],
-}
-renderer(vnode, document.getElementById('app'))
+    children: '父元素',
+  }
+  renderer(vnode, document.getElementById('app'))

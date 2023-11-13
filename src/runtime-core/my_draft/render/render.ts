@@ -1,16 +1,16 @@
-
-
 export function createRenderer(options) {
-  const {unmount} = options
+  const { unmount } = options
   function render(vnode, container) {
-    if(vnode) {
+    
+    if (vnode) {
       // 若 vnode 存在，则调用 patch
-      path(container._vode, vnode, container, options)
+      path(container._vnode, vnode, container, options)
     } else {
-      if(container._vnode) { // 若旧的 vnode 存在，则卸载
+      if (container._vnode) {
+        // 若旧的 vnode 存在，则卸载
         // container.innerHTML = ''
         unmount(container._vnode)
-      } 
+      }
     }
     // 将本次 vnode 存储，作为下次的旧 vnode
     container._vnode = vnode
@@ -19,34 +19,43 @@ export function createRenderer(options) {
 }
 
 function path(n1, n2, container, options) {
-  if (!n1) {  // 旧的 vnode 不存在，直接挂载
-     mountElement(n2, container, options)
+  // const {unmount} = options // ??????
+  // if (n1 && n1.type !==n2.type) { // ??????
+  //   unmount(n1)
+  //   n1 = null
+  // } // ???
+  
+  const { type } = n2
+  if (typeof type === 'string') {
+    if (!n1) {
+      // 旧的 vnode 不存在，直接挂载
+      mountElement(n2, container, options)
+    } else {
+      patchElement(n1, n2, options)
+    }
+  } else if (typeof type === 'object') {
+    // 组件
   } else {
-    // 旧的 vnode 存在，进行打补丁操作
+    // 其他类型
   }
 }
 
 // 挂载元素
 function mountElement(vnode, container, options) {
-  const {
-    createElement,
-    setElementText,
-    insert,
-    patchProps
-  } = options
+  const { createElement, setElementText, insert, patchProps } = options
   // 创建 DOM 元素
-  const el = vnode.el = createElement(vnode.type) // 将 el 挂载到 vnode 上
+  const el = (vnode.el = createElement(vnode.type)) // 将 el 挂载到 vnode 上
   // 若children 是字符串，则为文本类型
-  if(typeof vnode.children === 'string') {
+  if (typeof vnode.children === 'string') {
     setElementText(el, vnode.children)
-  } else if(Array.isArray(vnode.children)) {
-    vnode.children.forEach(child => {
+  } else if (Array.isArray(vnode.children)) {
+    vnode.children.forEach((child) => {
       path(null, child, el, options)
     })
   }
   // 设置属性
-  if(vnode.props) {
-    for(let key in vnode.props) {
+  if (vnode.props) {
+    for (let key in vnode.props) {
       /**
        * 在设置属性时，优先设置元素的 DOM properties
        */
@@ -57,4 +66,76 @@ function mountElement(vnode, container, options) {
   insert(el, container)
 }
 
-// 有一些属性是只读的，因此只能使用 setAttribute 来设置
+// 更新元素
+function patchElement(n1, n2, options) {
+  let { patchProps } = options
+  const el = (n2.el = n1.el)
+  // 比较 props
+  const oldProps = n1.props || {}
+  const newProps = n2.props || {}
+
+  for (let key in newProps) {
+    if (newProps[key] !== oldProps[key]) {
+      patchProps(el, key, oldProps[key], newProps[key])
+    }
+  }
+
+  for (let key in oldProps) {
+    if (!(key in newProps)) {
+      patchProps(el, key, oldProps[key], null)
+    }
+  }
+
+  // 比较 children
+  patchChildren(n1, n2, el, options)
+}
+
+
+// 更新 children
+function patchChildren(n1, n2, el, options) {
+  const {setElementText, unmount} = options
+  /**
+   * 此时旧 vnode 的 children 可能是 文本，一组子节点, 没有子节点
+   * 新的 vnode 的 children 可能是 文本，一组子节点, 没有子节点
+   * 有 9 中情况
+   * 1. 文本 -> 文本
+   * 2. 文本 -> 一组子节点
+   * 3. 文本 -> 没有子节点
+   * 4. 一组子节点 -> 文本
+   * 5. 一组子节点 -> 一组子节点
+   * 6. 一组子节点 -> 没有子节点
+   * 7. 没有子节点 -> 文本
+   * 8. 没有子节点 -> 一组子节点
+   * 9. 没有子节点 -> 没有子节点
+   */
+  if (typeof n2.children === 'string') { // 情况 1, 4, 7
+    if (Array.isArray(n1.children)) {
+      n1.children.forEach((child) => {
+        unmount(child)
+      })
+    }
+    setElementText(el, n2.children) 
+  } else if (Array.isArray(n2.children)) {  // 情况 2, 5, 8
+    if (Array.isArray(n1.children)) { // 情况5
+      // 核心 diff 算法
+      // 将旧子节点全部卸载
+      n1.children.forEach(c => unmount(c))
+      // 将新子节点全部挂载
+      n2.children.forEach(c => path(null, c, el, options))
+    } else { // 情况 2, 5
+      setElementText(el, '')
+      n2.children.forEach((child) => {
+        path(null, child, el, options)
+      })
+    }
+  } else { // 情况 3, 6, 9
+    if (Array.isArray(n1.children)) { // 情况6
+      n1.children.forEach((child) => {
+        unmount(child)
+      })
+    } else if(typeof n1.children === 'string') { // 情况 3
+      setElementText(el, '')
+    }
+    // 情况 9， 什么都不做
+  }
+}

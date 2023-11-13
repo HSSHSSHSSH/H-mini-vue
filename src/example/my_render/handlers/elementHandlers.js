@@ -20,6 +20,8 @@ function patchProps(el, key, preValue, value) {
     if (value) {
       if (!invoker) {
         invoker = el._vei[eventName] = (e) => {
+          // 若函数的发生时间早于事件的绑定时间则不做处理
+          // if(e.timeStamp < invoker.attached) return
           if(Array.isArray(invoker.value)) {
             invoker.value.forEach(fn => fn(e))
           } else {
@@ -27,6 +29,7 @@ function patchProps(el, key, preValue, value) {
           }
         }
         invoker.value = value
+        // invoker.attached = performance.now()
         el.addEventListener(eventName, invoker)
       } else {
         invoker.value = value
@@ -59,6 +62,8 @@ function unmount(vnode) {
   parent.removeChild(vnode.el)
 }
 
+
+// 有一些属性是只读的，因此只能使用 setAttribute 来设置
 function shouldSetAsProps(el, key, value) {
   if (key === 'form' && el.tagName === 'INPUT') return false
   return key in el
