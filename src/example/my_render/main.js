@@ -21,21 +21,20 @@ const renderer = createRenderer({
 })
 
 const vnode = {
-  type: 'div',
-  props: {
-    onClick: () => {
-      alert('父元素 clicked')
-    },
-  },
+  type: NodeFlags.Fragment,
   children: [
     {
-      type: NodeFlags.Text,
-      children: '蛙叫你'
+      type: 'li',
+      children: '蛙!!!'
     },
     {
-      type: NodeFlags.Comment,
-      children: '乌迪尔乌迪尔'
-    }
+      type: 'li',
+      children: '叫!!!'
+    },
+    {
+      type: 'li',
+      children: '你!!!'
+    },
   ],
 }
 renderer(vnode, document.getElementById('app'))

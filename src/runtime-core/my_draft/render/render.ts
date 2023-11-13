@@ -1,10 +1,8 @@
-import { NodeFlags } from "./flags"
-
+import { NodeFlags } from './flags'
 
 export function createRenderer(options) {
   const { unmount } = options
   function render(vnode, container) {
-    
     if (vnode) {
       // 若 vnode 存在，则调用 patch
       path(container._vnode, vnode, container, options)
@@ -27,12 +25,7 @@ function path(n1, n2, container, options) {
   //   unmount(n1)
   //   n1 = null
   // } // ???
-  const {
-    createText,
-    createComment,
-    setNodeValue,
-    insert
-  } = options
+  const { createText, createComment, setNodeValue, insert } = options
   const { type } = n2
   if (typeof type === 'string') {
     if (!n1) {
@@ -43,25 +36,41 @@ function path(n1, n2, container, options) {
     }
   } else if (typeof type === 'object') {
     // 组件
-  } else if (type === NodeFlags.Text) { // 文本节点
-    if (!n1) {  // 旧节点不存在 创建
+  } else if (type === NodeFlags.Text) {
+    // 文本节点
+    if (!n1) {
+      // 旧节点不存在 创建
       const el = (n2.el = createText(n2.children))
       insert(el, container)
-    } else { // 旧节点存在 更新
+    } else {
+      // 旧节点存在 更新
       const el = (n2.el = n1.el)
       if (n2.children !== n1.children) {
         setNodeValue(el, n2.children)
       }
     }
-  } else if (type === NodeFlags.Comment) { // 注释节点
-    if (!n1) {  // 旧节点不存在 创建
+  } else if (type === NodeFlags.Comment) {
+    // 注释节点
+    if (!n1) {
+      // 旧节点不存在 创建
       const el = (n2.el = createComment(n2.children))
       insert(el, container)
-    } else { // 旧节点存在 更新
+    } else {
+      // 旧节点存在 更新
       const el = (n2.el = n1.el)
       if (n2.children !== n1.children) {
         setNodeValue(el, n2.children)
       }
+    }
+  } else if (type === NodeFlags.Fragment) {
+    // Fragment 节点
+    // 对于 Fragment 节点，其实就是一个数组，只需处理其 children，所以直接遍历 children
+    if (!n1) {
+      n2.children.forEach((child) => {
+        path(null, child, container, options)
+      })
+    } else {
+      patchChildren(n1, n2, container, options)
     }
   } else {
     // 其他
@@ -118,10 +127,9 @@ function patchElement(n1, n2, options) {
   patchChildren(n1, n2, el, options)
 }
 
-
 // 更新 children
 function patchChildren(n1, n2, el, options) {
-  const {setElementText, unmount} = options
+  const { setElementText, unmount } = options
   /**
    * 此时旧 vnode 的 children 可能是 文本，一组子节点, 没有子节点
    * 新的 vnode 的 children 可能是 文本，一组子节点, 没有子节点
@@ -136,32 +144,39 @@ function patchChildren(n1, n2, el, options) {
    * 8. 没有子节点 -> 一组子节点
    * 9. 没有子节点 -> 没有子节点
    */
-  if (typeof n2.children === 'string') { // 情况 1, 4, 7
+  if (typeof n2.children === 'string') {
+    // 情况 1, 4, 7
     if (Array.isArray(n1.children)) {
       n1.children.forEach((child) => {
         unmount(child)
       })
     }
-    setElementText(el, n2.children) 
-  } else if (Array.isArray(n2.children)) {  // 情况 2, 5, 8
-    if (Array.isArray(n1.children)) { // 情况5
+    setElementText(el, n2.children)
+  } else if (Array.isArray(n2.children)) {
+    // 情况 2, 5, 8
+    if (Array.isArray(n1.children)) {
+      // 情况5
       // 核心 diff 算法
       // 将旧子节点全部卸载
-      n1.children.forEach(c => unmount(c))
+      n1.children.forEach((c) => unmount(c))
       // 将新子节点全部挂载
-      n2.children.forEach(c => path(null, c, el, options))
-    } else { // 情况 2, 5
+      n2.children.forEach((c) => path(null, c, el, options))
+    } else {
+      // 情况 2, 5
       setElementText(el, '')
       n2.children.forEach((child) => {
         path(null, child, el, options)
       })
     }
-  } else { // 情况 3, 6, 9
-    if (Array.isArray(n1.children)) { // 情况6
+  } else {
+    // 情况 3, 6, 9
+    if (Array.isArray(n1.children)) {
+      // 情况6
       n1.children.forEach((child) => {
         unmount(child)
       })
-    } else if(typeof n1.children === 'string') { // 情况 3
+    } else if (typeof n1.children === 'string') {
+      // 情况 3
       setElementText(el, '')
     }
     // 情况 9， 什么都不做

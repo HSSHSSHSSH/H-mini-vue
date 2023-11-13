@@ -1,4 +1,4 @@
-
+import { NodeFlags } from "../../../../lib/guide-mini-vue.esm.js"
 
 // 用于创建元素
 function createElement(tag) {
@@ -60,6 +60,11 @@ function patchProps(el, key, preValue, value) {
 
 // 用于卸载元素
 function unmount(vnode) {
+  // 对于 Fragment 标签需操作其 children
+  if (vnode.type === NodeFlags.Fragment) {
+    vnode.children.forEach(unmount)
+    return
+  }
   const parent = vnode.el.parentNode
   parent.removeChild(vnode.el)
 }
