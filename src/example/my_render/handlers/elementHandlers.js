@@ -60,6 +60,7 @@ function patchProps(el, key, preValue, value) {
 
 // 用于卸载元素
 function unmount(vnode) {
+  console.log('卸载', vnode);
   // 对于 Fragment 标签需操作其 children
   if (vnode.type === NodeFlags.Fragment) {
     vnode.children.forEach(unmount)

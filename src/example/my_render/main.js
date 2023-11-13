@@ -1,4 +1,9 @@
-import { createRenderer, effect, ref, NodeFlags } from '../../../lib/guide-mini-vue.esm.js'
+import { 
+  createRenderer, 
+  effect, 
+  ref, 
+  NodeFlags,
+} from '../../../lib/guide-mini-vue.esm.js'
 import {
   createElement,
   setElementText,
@@ -20,21 +25,35 @@ const renderer = createRenderer({
   setNodeText,
 })
 
+let count = ref(1)
+
 const vnode = {
-  type: NodeFlags.Fragment,
+  type: 'div',
+  props: {
+    onClick: () => {
+      renderer(new_vnode, document.getElementById('app'))
+    }
+  },
   children: [
-    {
-      type: 'li',
-      children: '蛙!!!'
-    },
-    {
-      type: 'li',
-      children: '叫!!!'
-    },
-    {
-      type: 'li',
-      children: '你!!!'
-    },
+    {type: 'p', children: '1', key: 1},
+    {type: 'p', children: '2', key: 2},
+    {type: 'p', children: 'hello', key: 3}
+  ],
+}
+
+
+const new_vnode = {
+  type: 'ul',
+  props: {
+    onClick: () => {
+      renderer(vnode, document.getElementById('app'))
+    }
+  },
+  children: [
+    {type: 'p', children: 'world', key: 3},
+    {type: 'p', children: '1', key: 1},
+    {type: 'p', children: '2', key: 2},
+    {type: 'p', children: '4', key: 4}
   ],
 }
 renderer(vnode, document.getElementById('app'))

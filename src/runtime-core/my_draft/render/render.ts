@@ -1,15 +1,19 @@
 import { NodeFlags } from './flags'
+import {
+  easy_diff,
+  double_end_diff,
+  fast_diff
+} from './diff'
 
 export function createRenderer(options) {
   const { unmount } = options
   function render(vnode, container) {
     if (vnode) {
       // 若 vnode 存在，则调用 patch
-      path(container._vnode, vnode, container, options)
+      patch(container._vnode, vnode, container, options)
     } else {
       if (container._vnode) {
         // 若旧的 vnode 存在，则卸载
-        // container.innerHTML = ''
         unmount(container._vnode)
       }
     }
@@ -19,18 +23,14 @@ export function createRenderer(options) {
   return render
 }
 
-function path(n1, n2, container, options) {
-  // const {unmount} = options // ??????
-  // if (n1 && n1.type !==n2.type) { // ??????
-  //   unmount(n1)
-  //   n1 = null
-  // } // ???
+export function patch(n1, n2, container, options, anchor = null) {
   const { createText, createComment, setNodeValue, insert } = options
   const { type } = n2
+  
   if (typeof type === 'string') {
     if (!n1) {
       // 旧的 vnode 不存在，直接挂载
-      mountElement(n2, container, options)
+      mountElement(n2, container, options, anchor)
     } else {
       patchElement(n1, n2, options)
     }
@@ -67,7 +67,7 @@ function path(n1, n2, container, options) {
     // 对于 Fragment 节点，其实就是一个数组，只需处理其 children，所以直接遍历 children
     if (!n1) {
       n2.children.forEach((child) => {
-        path(null, child, container, options)
+        patch(null, child, container, options)
       })
     } else {
       patchChildren(n1, n2, container, options)
@@ -78,7 +78,7 @@ function path(n1, n2, container, options) {
 }
 
 // 挂载元素
-function mountElement(vnode, container, options) {
+function mountElement(vnode, container, options, anchor) {
   const { createElement, setElementText, insert, patchProps } = options
   // 创建 DOM 元素
   const el = (vnode.el = createElement(vnode.type)) // 将 el 挂载到 vnode 上
@@ -87,7 +87,7 @@ function mountElement(vnode, container, options) {
     setElementText(el, vnode.children)
   } else if (Array.isArray(vnode.children)) {
     vnode.children.forEach((child) => {
-      path(null, child, el, options)
+      patch(null, child, el, options)
     })
   }
   // 设置属性
@@ -100,7 +100,7 @@ function mountElement(vnode, container, options) {
     }
   }
   // 将 DOM 元素挂载到容器上
-  insert(el, container)
+  insert(el, container,anchor)
 }
 
 // 更新元素
@@ -148,24 +148,23 @@ function patchChildren(n1, n2, el, options) {
     // 情况 1, 4, 7
     if (Array.isArray(n1.children)) {
       n1.children.forEach((child) => {
-        unmount(child)
+        unmount(child)        
       })
     }
+    
     setElementText(el, n2.children)
   } else if (Array.isArray(n2.children)) {
     // 情况 2, 5, 8
     if (Array.isArray(n1.children)) {
       // 情况5
       // 核心 diff 算法
-      // 将旧子节点全部卸载
-      n1.children.forEach((c) => unmount(c))
-      // 将新子节点全部挂载
-      n2.children.forEach((c) => path(null, c, el, options))
+     easy_diff(n1, n2, el, options)
+
     } else {
       // 情况 2, 5
       setElementText(el, '')
       n2.children.forEach((child) => {
-        path(null, child, el, options)
+        patch(null, child, el, options)
       })
     }
   } else {
