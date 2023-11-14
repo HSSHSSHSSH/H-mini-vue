@@ -29,7 +29,8 @@ export function easy_diff(n1, n2, el, options) {
         break
       }
     }
-    if (!find) {  // 未找到对应的旧节点，说明是新增的节点
+    if (!find) {
+      // 未找到对应的旧节点，说明是新增的节点
       let preVNode = newChildren[i - 1]
       let anchor = preVNode ? preVNode.el.nextSibling : el.firstChild // 获取当前节点的下一个节点
       patch(null, newNode, el, options, anchor)
@@ -49,7 +50,67 @@ export function easy_diff(n1, n2, el, options) {
 
 // 双端 diff
 export function double_end_diff(n1, n2, el, options) {
-  console.log('双端diff 算法')
+  const { insert } = options
+  let oldChildren = n1.children
+  let newChildren = n2.children
+  // 两端的索引
+  let oldStartIndex = 0
+  let oldEndIndex = oldChildren.length - 1
+  let newStartIndex = 0
+  let newEndIndex = newChildren.length - 1
+  // 两端的节点
+  let oldStartNode, oldEndNode, newStartNode, newEndNode
+  while (oldStartIndex <= oldEndIndex && newStartIndex <= newEndIndex) {
+    oldStartNode = oldChildren[oldStartIndex]
+    oldEndNode = oldChildren[oldEndIndex]
+    newStartNode = newChildren[newStartIndex]
+    newEndNode = newChildren[newEndIndex]
+    if (oldStartNode.key === newStartNode.key) {
+      // 旧的开端与新的开端比较
+      /**
+       * 打补丁
+       * 更新索引,更新端点
+       */
+
+      patch(oldStartNode, newStartNode, el, options)
+      oldStartIndex++
+      newStartIndex++
+    } else if (oldStartNode.key === newEndNode.key) {
+      // 旧的开端与新的末端比较
+      /**
+       * 打补丁
+       * 移动节点
+       * 更新索引,更新端点
+       */
+
+      patch(oldStartNode, newEndNode, el, options)
+      insert(oldStartNode.el, el, oldEndNode.el.nextSibling) // 移动节点
+      oldStartIndex++
+      newEndIndex--
+    } else if (oldEndNode.key === newStartNode.key) {
+      // 旧的末端与新的开端比较
+      /**
+       * 打补丁
+       * 移动节点
+       * 更新索引,更新端点
+       */
+
+      patch(oldEndNode, newStartNode, el, options)
+      insert(oldEndNode.el,el, oldStartNode.el) // 移动节点
+      oldEndIndex--
+      newStartIndex++
+    } else if (oldEndNode.key === newEndNode.key) {
+      // 旧的末端与新的末端比较
+      /**
+       * 打补丁
+       * 更新索引,更新端点
+       */
+
+      patch(oldEndNode, newEndNode, el, options)
+      oldEndIndex--
+      newEndIndex--
+    }
+  }
 }
 
 // 快速 diff

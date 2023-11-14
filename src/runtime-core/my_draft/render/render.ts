@@ -1,15 +1,12 @@
 import { NodeFlags } from './flags'
-import {
-  easy_diff,
-  double_end_diff,
-  fast_diff
-} from './diff'
+import { easy_diff, double_end_diff, fast_diff } from './diff'
 
 export function createRenderer(options) {
   const { unmount } = options
   function render(vnode, container) {
     if (vnode) {
       // 若 vnode 存在，则调用 patch
+      
       patch(container._vnode, vnode, container, options)
     } else {
       if (container._vnode) {
@@ -19,6 +16,7 @@ export function createRenderer(options) {
     }
     // 将本次 vnode 存储，作为下次的旧 vnode
     container._vnode = vnode
+    
   }
   return render
 }
@@ -26,7 +24,7 @@ export function createRenderer(options) {
 export function patch(n1, n2, container, options, anchor = null) {
   const { createText, createComment, setNodeValue, insert } = options
   const { type } = n2
-  
+
   if (typeof type === 'string') {
     if (!n1) {
       // 旧的 vnode 不存在，直接挂载
@@ -100,13 +98,14 @@ function mountElement(vnode, container, options, anchor) {
     }
   }
   // 将 DOM 元素挂载到容器上
-  insert(el, container,anchor)
+  insert(el, container, anchor)
 }
 
 // 更新元素
 function patchElement(n1, n2, options) {
   let { patchProps } = options
   const el = (n2.el = n1.el)
+  
   // 比较 props
   const oldProps = n1.props || {}
   const newProps = n2.props || {}
@@ -148,18 +147,20 @@ function patchChildren(n1, n2, el, options) {
     // 情况 1, 4, 7
     if (Array.isArray(n1.children)) {
       n1.children.forEach((child) => {
-        unmount(child)        
+        unmount(child)
       })
     }
-    
+
     setElementText(el, n2.children)
   } else if (Array.isArray(n2.children)) {
     // 情况 2, 5, 8
     if (Array.isArray(n1.children)) {
       // 情况5
       // 核心 diff 算法
-     easy_diff(n1, n2, el, options)
-
+      //  easy_diff(n1, n2, el, options)
+      
+      double_end_diff(n1, n2, el, options)
+      
     } else {
       // 情况 2, 5
       setElementText(el, '')
