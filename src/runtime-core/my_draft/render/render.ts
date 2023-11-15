@@ -159,8 +159,8 @@ function patchChildren(n1, n2, el, options) {
       // 核心 diff 算法
       //  easy_diff(n1, n2, el, options)
       
-      double_end_diff(n1, n2, el, options)
-      
+      // double_end_diff(n1, n2, el, options)
+      fast_diff(n1, n2, el, options)
     } else {
       // 情况 2, 5
       setElementText(el, '')
