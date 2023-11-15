@@ -50,7 +50,7 @@ export function easy_diff(n1, n2, el, options) {
 
 // 双端 diff
 export function double_end_diff(n1, n2, el, options) {
-  const { insert } = options
+  const { insert, unmount } = options
   let oldChildren = n1.children
   let newChildren = n2.children
   // 两端的索引
@@ -65,6 +65,17 @@ export function double_end_diff(n1, n2, el, options) {
     oldEndNode = oldChildren[oldEndIndex]
     newStartNode = newChildren[newStartIndex]
     newEndNode = newChildren[newEndIndex]
+    if (!oldStartNode) { // 处理 undefined 的情况
+      // 旧的开端不存在
+      oldStartIndex++
+      oldStartIndex = oldChildren[oldStartIndex]
+    }
+    if (!oldEndNode) { // 处理 undefined 的情况
+      // 旧的末端不存在
+      oldEndIndex--
+      oldEndNode = oldChildren[oldEndIndex]
+
+    }
     if (oldStartNode.key === newStartNode.key) {
       // 旧的开端与新的开端比较
       /**
@@ -109,6 +120,42 @@ export function double_end_diff(n1, n2, el, options) {
       patch(oldEndNode, newEndNode, el, options)
       oldEndIndex--
       newEndIndex--
+    } else {
+      // 非理想情况 四个端点均不可复用
+      let idxInOld
+      idxInOld = oldChildren.findIndex((node) => node.key === newStartNode.key)
+      if (idxInOld > 0) { // 新的开端在旧节点中且非旧的开端
+        let moveNode = oldChildren[idxInOld]
+        /**
+         * 打补丁
+         * 移动节点，更新索引
+         * 处理idxInOld位置的节点，设为undefined
+         */
+        patch(moveNode, newStartNode, el, options)
+        insert(moveNode.el, el, oldStartNode.el) // 移动节点
+        oldChildren[idxInOld] = undefined
+      }
+      if (idxInOld === -1) { // 新的开端不在旧节点中
+        /**
+         * 新增节点
+         * 更新索引
+         */
+        patch(null, newStartNode, el, options, oldStartNode.el)
+      }
+      newStartIndex++
+    }
+  }
+  // 处理剩余节点
+  if (oldStartIndex > oldEndIndex && newStartIndex <= newEndIndex) {
+    // 新节点还有剩余 需要新增
+    for (let i = newStartIndex; i <= newEndIndex; i++) {
+      patch(null, newChildren[i], el, options, oldStartNode.el)
+    }
+  }
+  if (newStartIndex > newEndIndex && oldStartIndex <= oldEndIndex) {
+    // 旧节点还有剩余 需要删除
+    for (let i = oldStartIndex; i <= oldEndIndex; i++) {
+      unmount(oldChildren[i])
     }
   }
 }
