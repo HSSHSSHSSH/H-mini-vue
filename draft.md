@@ -120,9 +120,62 @@ function easy_diff(n1, n2, container, options) {
 }
 ```
 
+以上完成了可复用 DOM 元素的更新与移动，以下来处理节点的新增。
 
+对于 newChildren 中的每个元素 newVNode，在遍历 oldChildren 后并未发现与 newVNode.key 相同的元素，此 newVNode 即为新增元素，引入变量 find 来判断当前 newVNode 是否为新增元素：
+
+```ts
+function easy_diff(n1, n2, container, options) {
+    /...其余代码..../
+    for(let i = 0; i < newLen; i++) {
+        let newVNode = newChildren[i]
+        let find = false
+        for(let j = 0; j < oldLen; j++) {
+            let oldVNode = oldChildren[j]
+            if(newVNode.key === oldVNode.key) {
+                find = true
+                /...其余代码.../
+            }
+        }
+        if(!find) { // 未找到与之对应的节点
+            // 当前 newVNode 是新增元素，需执行挂载操作并将其插入正确位置
+            // 未找到对应的旧节点，说明是新增的节点
+            let preVNode = newChildren[i - 1]
+            let anchor = preVNode ? preVNode.el.nextSibling : el.firstChild // 获取当前节点的下一个节点
+            patch(null, newNode, el, options, anchor)
+        }
+    }
+}
+```
+
+至此，完成了新增节点的操作，以下来进行卸载节点的操作。
+
+类似新增操作，卸载操作的操作对象是 oldChildren，参照对象是 newChildren，故外侧遍历 oldChildren，内层遍历 newChildren，即：
+
+```ts
+function easy_diff(n1, n2, container, options) {
+    /..其余代码../
+    for(let i = 0; i < newLen; i++) {
+        for(let j = 0; j < oldLen; j++) {
+            // 新增与移动,操作对象是 newChildren，参照对象是 oldChildren,故外层遍历 newChildren,内层遍历 oldChildren
+        }
+    }
+    // 卸载操作，操作对象是 oldChildren
+    for(let i = 0; i < oldLen; i++) { // 外层遍历 oldChildren
+        let oldNode = oldChildren[i]
+        let has = newChildren.find((newNode) => newNode.key === oldNode.key)  // 内层遍历 newChildren
+        if(!has) {
+            unmount(oldNode)
+        }
+    }
+}
+```
+
+以上便是简单diff算法的实现。
 
 ## 双端 diff
+
+
 
 ## 快速 diff
 
