@@ -32,6 +32,10 @@ const renderer = createRenderer({
 
 const CompVNode = {
   type: MyComponent,
+  props: {
+    title: '蛙叫你 title',
+    other: 'other',
+  }
 }
 
 
