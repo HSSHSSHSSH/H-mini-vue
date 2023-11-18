@@ -1,5 +1,6 @@
 import { NodeFlags } from './flags'
 import { easy_diff, double_end_diff, fast_diff } from './diff'
+import { mountComponent, patchComponent } from './component/handlers'
 
 export function createRenderer(options) {
   const { unmount } = options
@@ -34,6 +35,12 @@ export function patch(n1, n2, container, options, anchor = null) {
     }
   } else if (typeof type === 'object') {
     // 组件
+    console.log('蛙叫你  组件')
+    if(!n1) {
+      mountComponent(n2, container, options, anchor)
+    } else {
+      patchComponent(n1, n2, options, anchor)
+    }
   } else if (type === NodeFlags.Text) {
     // 文本节点
     if (!n1) {
