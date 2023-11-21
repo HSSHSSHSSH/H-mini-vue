@@ -1,3 +1,5 @@
+import { onMounted } from "../../../../lib/guide-mini-vue.esm.js"
+
 export const MyComponent = {
   name:'MyComponent',
   data() {
@@ -60,6 +62,12 @@ export const MySetupComponent2 = {
     const str = '乌迪尔'
     const { emit } = setupContext
     emit('change', 1, 2)
+    onMounted(() => {
+      console.log('mounted11111')
+    })
+    onMounted(() => {
+      console.log('mounted22222')
+    })
     return {
       count,
       str

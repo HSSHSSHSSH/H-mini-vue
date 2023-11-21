@@ -1,12 +1,11 @@
 import { patch } from '../render'
 import { reactive, effect } from '../../../../reactivity/index'
 import { queueJob } from './queueJob'
-import { CompInstance } from './instance'
+import { CompInstance, setCurrentInstance, lifeCycleRegister } from './instance'
 import { shallowReadonly } from '../../../../reactivity/reactive'
 
 // 挂载组件
 export function mountComponent(vnode, container, options, anchor) {
-  console.log('挂载 租价', vnode)
   // 通过 vnode.type 获取组件的描述对象
   const componentOptions = vnode.type
   // 获取描述对象的 render 函数与内部状态
@@ -107,16 +106,22 @@ function reactiveRender(
       if (!instance.isMounted) {
         // 调用 beforeMounted 钩子
         beforeMount && beforeMount.call(renderContext)
+        instance.lifeCycle.onBeforeMount.forEach((fn) => fn.call(renderContext))
         patch(null, subTree, container, options)
         instance.isMounted = true
         // 调用 mounted 钩子
+        instance.lifeCycle.onMounted.forEach((fn) => fn.call(renderContext))
         mounted && mounted.call(renderContext)
       } else {
         // 调用 beforeUpdate 钩子
         beforeUpdate && beforeUpdate()
+        instance.lifeCycle.onBeforeUpdate.forEach((fn) =>
+          fn.call(renderContext)
+        )
         patch(instance.subTree, subTree, container, options)
         // 调用 updated 钩子
         updated && updated.call(renderContext)
+        instance.lifeCycle.onUpdated.forEach((fn) => fn.call(renderContext))
       }
       instance.subTree = subTree
     },
@@ -225,7 +230,7 @@ function handleSetup(
   attrs: any,
   emit: Function
 ) {
-  console.log('在这里处理 setup 函数', attrs)
+  setCurrentInstance(instance)
   let setupState = null
   if (setup) {
     const setupContext = { attrs, emit }
@@ -243,6 +248,7 @@ function handleSetup(
       setupState = setupResult
     }
   }
+  setCurrentInstance(null)
   return {
     render,
     setupState,
