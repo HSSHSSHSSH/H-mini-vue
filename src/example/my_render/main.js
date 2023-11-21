@@ -15,7 +15,11 @@ import {
   setNodeText,
 } from './handlers/elementHandlers.js'
 
-import { MyComponent } from './component/my_component.js'
+import { 
+  MyComponent,
+  MySetupComponent1,
+  MySetupComponent2
+} from './component/my_component.js'
 
 const renderer = createRenderer({
   createElement,
@@ -31,11 +35,11 @@ const renderer = createRenderer({
 
 
 const CompVNode = {
-  type: MyComponent,
-  props: {
-    title: '蛙叫你 title',
-    other: 'other',
-  }
+  type: MySetupComponent2,
+  // props: {
+  //   title: '蛙叫你 title',
+  //   other: 'other',
+  // }
 }
 
 
