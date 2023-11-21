@@ -36,10 +36,11 @@ const renderer = createRenderer({
 
 const CompVNode = {
   type: MySetupComponent2,
-  // props: {
-  //   title: '蛙叫你 title',
-  //   other: 'other',
-  // }
+  props: {
+    onChange: (payload) => {
+      console.log('我在 props 中创建了一个 emit!!!')
+    }
+  }
 }
 
 

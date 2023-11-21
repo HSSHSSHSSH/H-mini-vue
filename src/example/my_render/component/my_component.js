@@ -58,6 +58,8 @@ export const MySetupComponent2 = {
   setup(props, setupContext) {
     const count = 0
     const str = '乌迪尔'
+    const { emit } = setupContext
+    emit('change', 1, 2)
     return {
       count,
       str

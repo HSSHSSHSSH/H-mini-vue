@@ -28,19 +28,20 @@ export function mountComponent(vnode, container, options, anchor) {
   // 解析组件 props
   const [props, attrs] = resolveProps(propsOptions, vnode.props)
   const instance = new CompInstance(vnode, state, props)
+  const emit = createEmit(instance)
   let { render: new_render, setupState } = handleSetup(
     setup,
     render,
     instance,
     attrs,
+    emit
   )
   if (!setupState) {
-    console.log('更新了 render 函数')
     render = new_render
   }
   vnode.component = instance
-  // 调用 created 钩子
   const renderContext = createRenderContext(instance, setupState)
+  // 调用 created 钩子
   created && created.call(renderContext)
   // 调用 render 函数，返回组件的 vnode
   // 组件内部状态更新时，更新视图
@@ -64,6 +65,25 @@ export function patchComponent(n1, n2, options, anchor) {
   // 获取当前 props 数据
   const props = instance.props
   updateProps(n1, n2, props)
+}
+
+/**
+ * 
+ * @param event 
+ * @param payload
+ * 注册事件处理函数
+ * 将事件名称前加 on 并大写首字母，作为事件处理函数的名称，在 props 上查找对丁的事件处理函数 
+ */
+function createEmit(instance: CompInstance) {
+  return function emit(event: string, ...payload: any[]) {
+    const eventName = `on${event[0].toUpperCase()}${event.slice(1)}`
+    let handler = instance.props[eventName]
+    if(handler) {
+      handler(...payload)
+    } else {
+      console.log('事件不存在')
+    }
+  }
 }
 
 // 注册副作用函数
@@ -105,11 +125,11 @@ function reactiveRender(
 }
 
 // 解析组件传参
-function resolveProps(options, propsData) {
+function resolveProps(options = {}, propsData = {}) {
   const props = {}
   const attrs = {}
   for (const key in propsData) {
-    if (key in options) {
+    if (key in options || key.startsWith('on')) { // 事件名称以 on 开头， 虽未在 props 中显式声明，也视为合法
       // 若为组件传递的 props 在组件描述对象中存在，则视为合法的 props
       props[key] = propsData[key]
     } else {
@@ -203,11 +223,12 @@ function handleSetup(
   render: Function | null,
   instance: CompInstance,
   attrs: any,
+  emit: Function
 ) {
   console.log('在这里处理 setup 函数', attrs)
   let setupState = null
   if (setup) {
-    const setupContext = { attrs }
+    const setupContext = { attrs, emit }
     const setupResult = setup(shallowReadonly(instance.props), setupContext)
     // 处理 setup 返回值
     if (typeof setupResult === 'function') {
