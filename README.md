@@ -1850,3 +1850,9 @@ export function computed(getter) {
 
 ### 初始化 component 主流程
 
+#### 组件的处理 handle component
+
+
+
+#### 元素的处理  handle element
+
