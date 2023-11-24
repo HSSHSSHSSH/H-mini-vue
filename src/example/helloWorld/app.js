@@ -4,7 +4,11 @@ window.self = null
 export const App = {
   render() {
     window.self = this
-    return h("div", {},[
+    return h("div", {
+      onClick() {
+        console.log('蛙叫你点我')
+      }
+    },[
       h("h1", {}, 'Hello World'),
       h("h1", {}, 'Hello World'),
     ])
