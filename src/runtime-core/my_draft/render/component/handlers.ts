@@ -100,7 +100,7 @@ function reactiveRender(
   effect(
     () => {
       const subTree = render.call(renderContext, renderContext) // 设置 this 的指向
-      instance.subTree = subTree
+      // instance.subTree = subTree
       // 将组件的 vnode 挂载到 container 上
       // 检查组件是否已被挂载
       if (!instance.isMounted) {
@@ -124,6 +124,7 @@ function reactiveRender(
         instance.lifeCycle.onUpdated.forEach((fn) => fn.call(renderContext))
       }
       instance.subTree = subTree
+      instance.el = subTree.el
     },
     { scheduler: queueJob }, // scheduler 避免不必要的渲染操作
   )

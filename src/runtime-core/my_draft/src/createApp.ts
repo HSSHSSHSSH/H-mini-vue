@@ -9,7 +9,7 @@ import { createVNode } from "./vnode"
 export function createApp(rootComponent) {
   return {
     mount(rootContainer) {
-      const root_container = document.getElementById(rootContainer)
+      const root_container = document.getElementById(rootContainer.slice(1))
       const vnode = createVNode(rootComponent)
       render(vnode, root_container)
     }
