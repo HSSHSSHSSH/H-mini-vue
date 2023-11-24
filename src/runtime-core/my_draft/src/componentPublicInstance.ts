@@ -5,8 +5,11 @@ const publicPropertiesMap = {
 
 export const PublicInstanceProxyHandlers = {
   get({_: instance}, key) {
-    if (key in instance.setupState) {
+    const {setupState, props} = instance
+    if (hasOwn(setupState, key)) {
       return instance.setupState[key]
+    } else if (hasOwn(props, key)) {
+      return instance.props[key]
     }
     const publicGetter = publicPropertiesMap[key]
     if(publicGetter) {
@@ -14,4 +17,8 @@ export const PublicInstanceProxyHandlers = {
     }
   },
   // set(target, key, value) {},
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key)
 }

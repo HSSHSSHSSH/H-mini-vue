@@ -130,7 +130,13 @@ function reactiveRender(
   )
 }
 
-// 解析组件传参
+/**
+ * 
+ * @param options 组件传参的格式
+ * @param propsData  实际传递的参数
+ * @returns 
+ * 通过 options 与 propsData 解析 props, 分出合法 props 与非法 attrs
+ */
 function resolveProps(options = {}, propsData = {}) {
   const props = {}
   const attrs = {}
