@@ -1,0 +1,25 @@
+import { h, renderSlots } from '../../../lib/guide-mini-vue.esm.js'
+import { Foo } from './foo.js'
+
+export const App = {
+  name: 'App',
+  setup() {
+    return {}
+  },
+  render() {
+    const app = h('div', {}, 'App')
+    // 单个插槽与多个插槽
+    // const foo = h(Foo, {}, h("p", {}, "123"))
+    // 具名插槽
+    // const foo = h(Foo, {}, {
+    //   header:  h('p', {}, 'header'),
+    //   footer:  h('p', {}, 'footer'),
+    // })
+    // 插槽函数
+    const foo = h(Foo, {}, {
+      header: ({str}) => h('p', {}, 'header'+ str),
+      footer: ({str}) => h('p', {}, 'footer'+ str),
+    })
+    return h('div', {}, [app, foo])
+  },
+}
