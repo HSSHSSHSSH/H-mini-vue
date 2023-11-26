@@ -1,4 +1,4 @@
-import { h, renderSlots } from '../../../lib/guide-mini-vue.esm.js'
+import { h, createTextNode } from '../../../lib/guide-mini-vue.esm.js'
 import { Foo } from './foo.js'
 
 export const App = {
@@ -16,10 +16,14 @@ export const App = {
     //   footer:  h('p', {}, 'footer'),
     // })
     // 插槽函数
-    const foo = h(Foo, {}, {
-      header: ({str}) => h('p', {}, 'header'+ str),
-      footer: ({str}) => h('p', {}, 'footer'+ str),
-    })
+    const foo = h(
+      Foo,
+      {},
+      {
+        header: ({ str }) => [h('p', {}, 'header' + str), createTextNode('哇哇哇哇哇')],
+        footer: ({ str }) => h('p', {}, 'footer' + str),
+      },
+    )
     return h('div', {}, [app, foo])
   },
 }

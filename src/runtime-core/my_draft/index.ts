@@ -12,3 +12,4 @@ export {
 export { createApp } from './src/createApp'
 export * from './src/h'
 export { renderSlots } from './src/helper/renderSlots'
+export { createTextNode } from './src/vnode'

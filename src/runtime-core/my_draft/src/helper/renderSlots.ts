@@ -1,19 +1,22 @@
-import { createVNode } from '../vnode'
+import { Fragment, createVNode } from '../vnode'
 
 export function renderSlots(slots, name, props) {
-  // debugger
+  let children
   if (name) {
     let slot = slots[name]
     if (slot) { // 具名插槽与插槽函数
       if(typeof slot === 'function') {
-        return createVNode('div', {}, slot(props))
+        children = slot(props)
+        // return createVNode('Fragment', {}, slot(props))
 
       } else {
-
-        return createVNode('div', {}, slot)
+        children = slot
+        // return createVNode('Fragment', {}, slot)
       }
     }
   } else { // 单个插槽与多个插槽
-    return createVNode('div', {}, slots)
+    children = slots
+    // return createVNode('Fragment', {}, slots)
   }
+  return createVNode(Fragment, {}, children)
 }

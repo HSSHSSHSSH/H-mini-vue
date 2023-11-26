@@ -1,5 +1,6 @@
 import { ShapeFlags } from "../../../shared/shapeFlags"
 import { createComponentInstance, setupComponent } from "./component"
+import { Fragment, Text } from "./vnode"
 
 export function render(vnode, container) {
   // 调用 patch
@@ -8,23 +9,53 @@ export function render(vnode, container) {
 
 // patch 处理虚拟节点
 function patch(vnode, container) {
-  const {shapeFlag} = vnode
-  if(shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-    // 处理组件 component
-    
-    processComponent(vnode, container)
-  } else if (shapeFlag & ShapeFlags.ELEMENT) {
-    // 处理元素 element
-    processElement(vnode, container)
+  const {type, shapeFlag} = vnode
+  switch(type) {
+    case Fragment:
+      processFragment(vnode, container)
+      break
+    case Text:
+      processText(vnode, container)
+      break
+    default:
+    if(shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+      // 处理组件 component
+      processComponent(vnode, container)
+    } else if (shapeFlag & ShapeFlags.ELEMENT) {
+      // 处理元素 element
+      processElement(vnode, container)
+    }
+      break
   }
 }
 
 
+
+// 处理文本节点
+function processText(vnode, container) {
+  const {children} = vnode
+  const textNode = (vnode.el = document.createTextNode(children))
+  container.appendChild(textNode)
+}
+
+/**
+ * 处理 Fragment 节点
+ * @param vnode 
+ * @param container 
+ * 对于 Fragment 节点，只需处理其 children 即可
+ */
+function processFragment(vnode, container) {
+  mountChildren(vnode, container)
+}
+
+// 处理 element 节点
 function processElement(vnode, container) {
   mountElement(vnode, container)
 }
 
 
+
+// 挂载 element 节点
 function mountElement(vnode, container) {
   const el = (vnode.el = document.createElement(vnode.type))
   const {children, shapeFlag} = vnode
