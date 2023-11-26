@@ -1,10 +1,12 @@
-import { h, renderSlots } from '../../../lib/guide-mini-vue.esm.js'
+import { h, renderSlots, getCurrentInstance } from '../../../lib/guide-mini-vue.esm.js'
 
 export const Foo = {
   name: 'Foo',
   setup() {
     const str1 = '蛙叫你！！'
     const str2 = '乌迪尔！！'
+    let instance = getCurrentInstance()
+    console.log('Foo instance', instance)
     return {
       str1,
       str2,

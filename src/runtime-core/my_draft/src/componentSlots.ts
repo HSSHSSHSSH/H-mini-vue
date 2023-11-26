@@ -1,6 +1,5 @@
 export function initSlots(instance, children) {
   // debugger
-  console.log('children', children)
   if (
     typeof children === 'object' &&
     !Array.isArray(children) &&
