@@ -78,7 +78,7 @@ export function trigger(target, key) {
 }
 
 export function triggerEffect(deps: Set<any>) {
-  let depsEffects = new Set(deps)
+  let depsEffects = new Set(deps) // 避免无限调用
   depsEffects.forEach((effect) => {
     if (effect.options && effect.options.scheduler) {
       // 如果有配置scheduler，则执行scheduler
