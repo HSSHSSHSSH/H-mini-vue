@@ -33,10 +33,15 @@ const renderer = createRenderer({
 })
 
 
-
+let num = ref(1)
 const CompVNode = {
   type: MySetupComponent2,
   props: {
+    num: num,
+    onClick: () => {
+      num.value++
+      console.log('被点击')
+    },
     onChange: (payload) => {
       console.log('我在 props 中创建了一个 emit!!!')
     }

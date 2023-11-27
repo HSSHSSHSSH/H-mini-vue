@@ -64,6 +64,7 @@ export function patchComponent(n1, n2, options, anchor) {
   // 获取当前 props 数据
   const props = instance.props
   updateProps(n1, n2, props)
+  console.log('更新组件')
 }
 
 /**

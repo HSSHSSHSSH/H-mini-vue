@@ -23,9 +23,10 @@ export function createRenderer(options) {
 }
 
 export function patch(n1, n2, container, options, anchor = null) {
+  debugger
   const { createText, createComment, setNodeValue, insert } = options
   const { type } = n2
-
+  console.log('tttype', type)
   if (typeof type === 'string') {
     if (!n1) {
       // 旧的 vnode 不存在，直接挂载

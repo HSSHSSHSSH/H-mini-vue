@@ -61,6 +61,7 @@ function processElement(n1, n2, container, parentComponent) {
 function patchElement(n1, n2, container) {
   // 更新 props 
   patchProps(n1, n2)
+  console.log('更新 element 节点')
 }
 
 // 更新 props 

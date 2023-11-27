@@ -68,15 +68,24 @@ export const MySetupComponent2 = {
     onMounted(() => {
       console.log('mounted22222')
     })
+    console.log('props', props)
     return {
       count,
-      str
+      str,
+      props
     }
+  },
+  props: {
+    num: Number,
+    onClick: Function
   },
   render() {
     return {
       type: 'div',
-      children: `${this.str} ${this.count}`
+      props: {
+        onClick: this.props.onClick
+      },
+      children: `${this.str} ${this.count} ${this.props.num.value}`
     }
   }
 }
