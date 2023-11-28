@@ -1,7 +1,7 @@
-import { 
-  createRenderer, 
-  effect, 
-  ref, 
+import {
+  createRenderer,
+  effect,
+  ref,
   NodeFlags,
 } from '../../../lib/guide-mini-vue.esm.js'
 import {
@@ -15,10 +15,10 @@ import {
   setNodeText,
 } from './handlers/elementHandlers.js'
 
-import { 
+import {
   MyComponent,
   MySetupComponent1,
-  MySetupComponent2
+  MySetupComponent2,
 } from './component/my_component.js'
 
 const renderer = createRenderer({
@@ -32,21 +32,29 @@ const renderer = createRenderer({
   setNodeText,
 })
 
-
 let num = ref(1)
 const CompVNode = {
-  type: MySetupComponent2,
-  props: {
-    num: num,
-    onClick: () => {
-      num.value++
-      console.log('被点击')
-    },
-    onChange: (payload) => {
-      console.log('我在 props 中创建了一个 emit!!!')
-    }
-  }
-}
+  type: 'div',
 
+  children: [
+    {
+      type: 'div',
+      children: 'hello world',
+    },
+    {
+      type: MySetupComponent2,
+      props: {
+        num: num,
+        onClick: () => {
+          num.value++
+          console.log('被点击')
+        },
+        onChange: (payload) => {
+          console.log('我在 props 中创建了一个 emit!!!')
+        },
+      },
+    },
+  ],
+}
 
 renderer(CompVNode, document.getElementById('app'))

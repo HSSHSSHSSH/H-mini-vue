@@ -114,6 +114,7 @@ function reactiveRender(
         instance.lifeCycle.onMounted.forEach((fn) => fn.call(renderContext))
         mounted && mounted.call(renderContext)
       } else {
+        console.log('组件更新')
         // 调用 beforeUpdate 钩子
         beforeUpdate && beforeUpdate()
         instance.lifeCycle.onBeforeUpdate.forEach((fn) =>

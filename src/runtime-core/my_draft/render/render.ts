@@ -111,6 +111,7 @@ function mountElement(vnode, container, options, anchor) {
 
 // 更新元素
 function patchElement(n1, n2, options) {
+  console.log('更新元素')
   let { patchProps } = options
   const el = (n2.el = n1.el)
   
