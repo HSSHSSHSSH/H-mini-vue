@@ -11,30 +11,59 @@ export function baseParse(content: string) {
 }
 
 // 解析子节点
-function parseChildren(context) {
+function parseChildren(context, ancestors: any[] = []) {
   const nodes: any = []
-  let node
-  let s = context.source
-  if (s.startsWith('{{')) {
-    node = parseInterpolation(context)
-  } else if (s[0] === '<') {
-    if (/[a-z]/i.test(s[1])) {
-      node = parseElement(context)
+  while (!isEnd(context, ancestors)) {
+    let node
+    let s = context.source
+    if (s.startsWith('{{')) {
+      node = parseInterpolation(context)
+    } else if (s[0] === '<') {
+      if (/[a-z]/i.test(s[1])) {
+        node = parseElement(context, ancestors)
+      }
+    }
+
+    if (!node) {
+      // 默认为 text 类型
+      node = parseText(context)
+    }
+
+    nodes.push(node)
+  }
+  return nodes
+}
+
+function isEnd(context, ancestors: any[]) {
+  const s = context.source
+  // 遇到结束标签
+  // if (parentTag && s.startsWith(`</${parentTag}>`)) {
+  //   return true
+  // }
+  if (s.startsWith('</')) {
+    for (let i = ancestors.length - 1; i >= 0; i--) {
+      const tag = ancestors[i].tag
+      if (startsWithEndTagOpen(s, tag)) {
+        return true
+      }
     }
   }
-
-  if (!node) {
-    // 默认为 text 类型
-    node = parseText(context)
-  }
-
-  nodes.push(node)
-  return nodes
+  // source 为空时，表示已经解析完成
+  return !s
 }
 
 // 解析 text 文本
 function parseText(context) {
-  const content = parseTextData(context, context.source.length)
+  let endIndex = context.source.length
+  let endTokens = ['<', '{{']
+  for (let i = 0; i < endTokens.length; i++) {
+    const index = context.source.indexOf(endTokens[i])
+    if (index !== -1 && endIndex > index) {
+      endIndex = index
+    }
+  }
+
+  const content = parseTextData(context, endIndex)
   return {
     type: NodeTypes.TEXT,
     content: content,
@@ -50,10 +79,24 @@ function parseTextData(context, length) {
 }
 
 // 解析 element
-function parseElement(context) {
-  const element = parseTag(context, TagType.Start)
-  parseTag(context, TagType.End)
+function parseElement(context, ancestors: any[]) {
+  const element: any = parseTag(context, TagType.Start)
+  ancestors?.push(element) // 收集开始标签
+  element.children = parseChildren(context, ancestors)
+  ancestors.pop() // 移除开始标签
+  if (startsWithEndTagOpen(context.source, element.tag)) {
+    parseTag(context, TagType.End)
+  } else {
+    throw new Error(`缺少结束标签：${element.tag}`)
+  }
   return element
+}
+
+function startsWithEndTagOpen(source, tag) {
+  return (
+    source.startsWith('</') &&
+    source.slice(2, 2 + tag.length).toLowerCase() === tag.toLowerCase()
+  )
 }
 
 // 解析 element 标签
@@ -86,8 +129,7 @@ function parseInterpolation(context) {
 
   let content = parseTextData(context, rawContextLength)
   content = content.trim()
-  advanceBy(context, rawContextLength + closeDelimiter.length)
-
+  advanceBy(context, closeDelimiter.length)
   return {
     type: NodeTypes.INTERPOLATION,
     content: {
