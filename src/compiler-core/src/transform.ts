@@ -1,11 +1,12 @@
 
 
 
-export function transform(root, options) {
+export function transform(root, options = {}) {
   let context = createTransformContext(root, options)
   // 遍历 ast，找到所有的文本类型的节点
-  traverseNode(root, context)
   // 修改文本节点的 content
+  traverseNode(root, context)
+  createRootCodegen(root)
 }
 
 
@@ -39,3 +40,7 @@ function createTransformContext(root: any, options: any) {
   }
   return context
 }
+function createRootCodegen(root: any) {
+  root.codegenNode = root.children[0]
+}
+
