@@ -1,5 +1,10 @@
+import { isString } from '../../shared/index'
 import { NodeTypes } from './ast'
-import { TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
+import {
+  CREATE_ELEMENT_VNODE,
+  TO_DISPLAY_STRING,
+  helperNameMap,
+} from './runtimeHelpers'
 
 export function generate(ast) {
   const context: any = createCodegenContext()
@@ -40,10 +45,31 @@ function genNode(node: any, context) {
     case NodeTypes.SIMPLE_EXPRESSION:
       genExpression(node, context)
       break
+    case NodeTypes.ELEMENT:
+      genElement(node, context)
+      break
+    case NodeTypes.COMPOUND_EXPRESSION:
+      genCompoundExpression(node, context)
+      break
     default:
       break
   }
 }
+
+
+function genCompoundExpression(node, context) {
+  const { push } = context
+  const children = node.children
+  for(let i = 0; i < children.length; i++) {
+    const child = children[i]
+    if (typeof child === 'string') {
+      push(child)
+    } else {
+      genNode(child, context)
+    }
+  }
+}
+
 
 function genText(node, context) {
   const { push } = context
@@ -58,7 +84,7 @@ function createCodegenContext() {
     },
     helper(key) {
       return `_${helperNameMap[key]}`
-    }
+    },
   }
   return context
 }
@@ -70,7 +96,37 @@ function genInterpolation(node: any, context: any) {
 }
 
 function genExpression(node: any, context: any) {
-  const {push} = context
+  const { push } = context
   push(`${node.content}`)
 }
 
+function genElement(node: any, context: any) {
+  const { push, helper } = context
+  const { tag, children, props } = node
+  push(`${helper(CREATE_ELEMENT_VNODE)}(`)
+  genNodeList(genNullable([tag, props, children]), context)
+  // genNode(children, context)
+  push(')')
+}
+
+
+function genNullable(args: any[]) {
+  return args.map((arg) => (arg ? arg : 'null'))
+}
+
+
+function genNodeList(nodes, context) {
+  const {push} = context
+  for(let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]
+    console.log(node)
+    if(isString(node)) {
+      push(node)
+    } else {
+      genNode(node, context)
+    }
+    if(i < nodes.length - 1) {
+      push(', ')
+    }
+  }
+}
