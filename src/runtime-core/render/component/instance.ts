@@ -1,5 +1,5 @@
 // 组件实例，描述与组件有关的状态信息
-import {shallowReactive} from '../../../../reactivity/index'
+import {shallowReactive} from '../../../reactivity/index'
 
 let currentInstance: CompInstance | null = null
 

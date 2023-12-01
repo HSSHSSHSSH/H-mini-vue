@@ -1,13 +1,18 @@
-import { ShapeFlags } from '../../../shared/shapeFlags'
+import { ShapeFlags } from '../../shared/shapeFlags'
 
 export const Fragment = Symbol('Fragment')
 export const Text = Symbol('Text')
 
-export function createVNode(type, props = {}, children?) {
+
+export {createVNode as createElementVNode}
+
+export function createVNode(type, props: any = {}, children?) {
   const vnode = {
     type,
     props,
     children,
+    key: props && props.key,
+    component: null,
     shapeFlag: getShapeFlag(type),
     el: null,
   }

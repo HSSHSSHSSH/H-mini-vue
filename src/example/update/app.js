@@ -11,14 +11,17 @@ export const App = {
 
     const onChangePropsDemo1 = () => {
       props.value.foo = 'new-foo'
+      console.log('props', props.value)
     }
     const onChangePropsDemo2 = () => {
       props.value.foo = undefined
+      console.log('props', props.value)
     }
     const onChangePropsDemo3 = () => {
       props.value = {
         foo: 'foo'
       }
+      console.log('props', props.value)
     }
     const onClick = () => {
       count.value++

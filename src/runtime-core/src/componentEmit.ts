@@ -1,4 +1,4 @@
-import { camelize, toHandlerKey } from "../../../shared/index"
+import { camelize, toHandlerKey } from "../../shared/index"
 
 
 export function emit(instance, eventName, ...payload) {

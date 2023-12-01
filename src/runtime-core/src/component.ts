@@ -1,5 +1,5 @@
-import { shallowReadonly } from "../../../reactivity/reactive"
-import { proxyRefs } from "../../../reactivity/ref"
+import { shallowReadonly } from "../../reactivity/reactive"
+import { proxyRefs } from "../../reactivity/ref"
 import { emit } from "./componentEmit"
 import { initProps } from "./componentProps"
 import { PublicInstanceProxyHandlers } from "./componentPublicInstance"
@@ -14,6 +14,7 @@ export function createComponentInstance(vnode, parent) {
     setupState: {},
     props: {},
     slots: {},
+    next: null,
     provides: parent && parent.provides ? parent.provides : {}, // 跨组件层传递
     parent,
     isMounted: false,
@@ -67,7 +68,20 @@ function handleSetupResult(instance, setupResult) {
 
 function finishComponentSetup(instance) {
   const Component = instance.type
-  if (Component.render) {
-    instance.render = Component.render
+  if(compiler && !Component.render) {
+    if(Component.template) {
+      console.log('蛙叫你')
+      Component.render = compiler(Component.template)
+    }
   }
+  // if (Component.render) {
+    instance.render = Component.render
+  // }
 }
+
+let compiler 
+
+export function registerRuntimeCompiler(_compiler) {
+  compiler = _compiler
+}
+

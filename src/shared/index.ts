@@ -1,4 +1,4 @@
-
+export * from './toDisplayString'
 
 export function isObject(value) {
   return typeof value === 'object' && value !== null
@@ -8,6 +8,7 @@ export function isString(value) {
   return typeof value === 'string'
 }
 
+export const isOn = (key) => /^on[A-Z]/.test(key);
 
 
 // 将字符串首字母大写

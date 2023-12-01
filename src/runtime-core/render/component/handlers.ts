@@ -1,8 +1,8 @@
 import { patch } from '../render'
-import { reactive, effect } from '../../../../reactivity/index'
+import { reactive, effect } from '../../../reactivity/index'
 import { queueJob } from './queueJob'
 import { CompInstance, setCurrentInstance, lifeCycleRegister } from './instance'
-import { shallowReadonly } from '../../../../reactivity/reactive'
+import { shallowReadonly } from '../../../reactivity/reactive'
 
 // 挂载组件
 export function mountComponent(vnode, container, options, anchor) {

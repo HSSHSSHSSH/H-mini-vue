@@ -2,7 +2,7 @@ import { NodeFlags } from './flags'
 import { easy_diff, double_end_diff, fast_diff } from './diff'
 import { mountComponent, patchComponent } from './component/handlers'
 
-export function createRenderer(options) {
+export function h_createRenderer(options) {
   const { unmount } = options
   function render(vnode, container) {
     if (vnode) {
@@ -23,7 +23,6 @@ export function createRenderer(options) {
 }
 
 export function patch(n1, n2, container, options, anchor = null) {
-  debugger
   const { createText, createComment, setNodeValue, insert } = options
   const { type } = n2
   console.log('tttype', type)

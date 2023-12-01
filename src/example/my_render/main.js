@@ -1,5 +1,5 @@
 import {
-  createRenderer,
+  h_createRenderer,
   effect,
   ref,
   NodeFlags,
@@ -21,7 +21,7 @@ import {
   MySetupComponent2,
 } from './component/my_component.js'
 
-const renderer = createRenderer({
+const renderer = h_createRenderer({
   createElement,
   setElementText,
   insert,
