@@ -41,6 +41,10 @@ export class ReactiveEffect {
       this.active = false
     }
   }
+
+  set onStop(fn) {
+    this.options.onStop = fn
+  }
 }
 
 // 收集依赖
